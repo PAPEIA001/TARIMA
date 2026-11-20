@@ -86,7 +86,7 @@ function send(cmd, timeout) {
 function errText(r) {
   var map = {
     timeout: "La tele no responde. Comprueba que tiene abierta la pantalla de Tarima.",
-    auth: "Contraseña incorrecta. Pídesela al anfitrión.",
+    auth: "Esa no es la contraseña de esta fiesta. Es la de invitados que sale en el panel de administrador (o la clave de anfitrión).",
     limit: "Ya tienes el máximo de canciones en cola. Espera a cantar una.",
     dup: "Ya tienes esa canción en la cola.",
     badurl: "No reconozco ese enlace de YouTube.",
@@ -140,7 +140,7 @@ function paintHead() {
 }
 function login(code, name, pw) {
   openConn(code);
-  return T.hash(code + ":" + pw).then(function (auth) {
+  return T.hash(code + ":" + T.pw(pw)).then(function (auth) {
     return waitLinked(10000).then(function (ok) {
       if (!ok) return S.libMissing ? "No se ha podido cargar la app. Recarga la página." : "Sin conexión con el servidor. Revisa tu internet y prueba otra vez.";
       S.session = { code: code, name: name, auth: auth };

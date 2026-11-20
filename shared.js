@@ -149,6 +149,9 @@ var T = (function () {
     return { base: base, state: base + "/state", cmd: base + "/cmd", config: base + "/config", res: function (cid) { return base + "/res/" + cid; } };
   }
 
+  // Party passwords ignore case and spaces at the ends, so phone keyboards can't break them.
+  function pw(s) { return String(s == null ? "" : s).trim().toLowerCase(); }
+
   function adminTopic(h) { return "tarima/v1/admin/" + h; }
 
   var COLORS = { rosa: "#ff3d7f", naranja: "#ff8a3d", amarillo: "#ffc93d", verde: "#3ddc97", azul: "#3db8ff", lila: "#a46bff" };
@@ -169,5 +172,5 @@ var T = (function () {
   }
 
   return { BROKERS: BROKERS, CATALOG: CATALOG, esc: esc, rand: rand, hash: hash, ytId: ytId, playlistId: playlistId, norm: norm,
-    initials: initials, adminTopic: adminTopic, COLORS: COLORS, applyColor: applyColor, hue: hue, art: art, avatar: avatar, store: store, connect: connect, topics: topics, mmss: mmss, siteBase: siteBase };
+    initials: initials, pw: pw, adminTopic: adminTopic, COLORS: COLORS, applyColor: applyColor, hue: hue, art: art, avatar: avatar, store: store, connect: connect, topics: topics, mmss: mmss, siteBase: siteBase };
 })();

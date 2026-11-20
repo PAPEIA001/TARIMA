@@ -82,7 +82,11 @@ function connect(h) {
     }
     var mm = topic.match(/^tarima\/v1\/([A-Z0-9]+)\/(config|state)$/);
     if (!mm) return;
-    if (mm[2] === "config") A.configs[mm[1]] = m; else A.live[mm[1]] = { at: Date.now(), ts: m.ts, q: (m.queue || []).length, g: (m.guests || []).length, now: m.now, queue: m.queue || [] };
+    if (mm[2] === "config") {
+      A.configs[mm[1]] = m;
+      var old = findParty(mm[1]);
+      if (old && m.v !== 2) publishConfig(old);   // configs made before passwords ignored case
+    } else A.live[mm[1]] = { at: Date.now(), ts: m.ts, q: (m.queue || []).length, g: (m.guests || []).length, now: m.now, queue: m.queue || [] };
     if (A.user) render(true);
   });
 }
@@ -95,10 +99,10 @@ function watchParties() {
 }
 function saveIndex() { A.index.ts = Date.now(); A.conn.publish(T.adminTopic(A.h), A.index, true); }
 function publishConfig(p, photo) {
-  return Promise.all([T.hash(p.code + ":" + p.pw), T.hash(p.code + ":" + p.hostpw)]).then(function (h) {
+  return Promise.all([T.hash(p.code + ":" + T.pw(p.pw)), T.hash(p.code + ":" + T.pw(p.hostpw))]).then(function (h) {
     var cfg = { code: p.code, name: p.name, date: p.date || "", welcome: p.welcome || "", color: p.color || "rosa", intro: p.intro || "neon",
       limit: p.limit !== false, bg: p.bg || "", key: A.index.key || "", photo: photo === undefined ? ((A.configs[p.code] || {}).photo || "") : photo,
-      pwHash: h[0], hostHash: h[1], ts: Date.now() };
+      pwHash: h[0], hostHash: h[1], v: 2, ts: Date.now() };
     A.configs[p.code] = cfg;
     A.conn.publish(T.topics(p.code).config, cfg, true);
   });
@@ -109,7 +113,7 @@ function renderLogin(mode, err) {
   mode = mode || "in";
   $app.innerHTML = '<form class="login" id="lf" novalidate style="padding:0">' +
     '<div class="logo"><svg viewBox="0 0 40 40" fill="none"><circle cx="24" cy="14" r="10" fill="#ff3d7f"/><path d="M17 21 5 33l2 2 12-12" stroke="#ffb547" stroke-width="4" stroke-linecap="round"/></svg>Tarima</div>' +
-    '<p class="muted" style="margin:6px 0 20px">Panel de administrador: crea y personaliza tus fiestas.</p>' +
+    '<p class="muted" style="margin:6px 0 20px">Panel de administrador: crea y personaliza tus fiestas. ¿Primera vez? Pulsa «Crear cuenta».</p>' +
     '<div class="tabsx" style="margin-bottom:16px"><button type="button" class="chip" data-mode="in" aria-pressed="' + (mode === "in") + '">Entrar</button><button type="button" class="chip" data-mode="new" aria-pressed="' + (mode === "new") + '">Crear cuenta</button></div>' +
     '<div class="field"><label for="au">Usuario</label><input id="au" autocomplete="username" autocapitalize="none" maxlength="30" required></div>' +
     '<div class="field"><label for="ap">Contraseña</label><input id="ap" type="password" autocomplete="' + (mode === "new" ? "new-password" : "current-password") + '" required></div>' +
@@ -127,16 +131,24 @@ function renderLogin(mode, err) {
       A.index = null; connect(h);
       return linked(10000).then(function (ok) {
         if (!ok) throw new Error("Sin conexión con el servidor. Revisa tu internet.");
-        return new Promise(function (res) { var t0 = Date.now(); (function w() { if (A.index || Date.now() - t0 > 5000) return res(); setTimeout(w, 200); })(); });
+        return new Promise(function (res) { var t0 = Date.now(); (function w() { if (A.index || Date.now() - t0 > 8000) return res(); setTimeout(w, 200); })(); });
       }).then(function () {
         if (mode === "new") {
           if (A.index) throw new Error("Esa cuenta ya existe. Entra con ella.");
           A.index = { user: u, parties: [], key: "", ts: Date.now() }; saveIndex();
-        } else if (!A.index) throw new Error("Usuario o contraseña incorrectos.");
+        } else if (!A.index) { var er = new Error("No hay ninguna cuenta con ese usuario y contraseña."); er.offer = true; throw er; }
         A.user = u; T.store("admin", { h: h, user: u }); A.view = "list"; render();
         toast(mode === "new" ? "Cuenta creada" : "Hola, " + u);
       });
-    }).catch(function (er) { ab.disabled = false; ab.textContent = mode === "new" ? "Crear cuenta" : "Entrar"; ae.textContent = er.message; });
+    }).catch(function (er) {
+      ab.disabled = false; ab.textContent = mode === "new" ? "Crear cuenta" : "Entrar"; ae.textContent = er.message;
+      if (er.offer) {
+        var b2 = document.createElement("button"); b2.type = "button"; b2.className = "btn sec"; b2.style.marginTop = "10px";
+        b2.textContent = "Es mi primera vez: crear la cuenta con estos datos";
+        b2.addEventListener("click", function () { A.index = { user: u, parties: [], key: "", ts: Date.now() }; saveIndex(); A.user = u; T.store("admin", { h: A.h, user: u }); A.view = "list"; render(); toast("Cuenta creada"); });
+        ae.parentNode.appendChild(b2);
+      }
+    });
   });
 }
 
@@ -219,7 +231,7 @@ function vEdit() {
     if (!name) { toast("Ponle un nombre a la fiesta.", true); document.getElementById("eName").focus(); return; }
     var pw = document.getElementById("ePw").value.trim(), hp = document.getElementById("eHost").value.trim();
     if (!pw || !hp) { toast("La contraseña de invitados y la clave de anfitrión no pueden estar vacías.", true); return; }
-    if (pw === hp) { toast("La clave de anfitrión tiene que ser distinta de la de invitados.", true); return; }
+    if (T.pw(pw) === T.pw(hp)) { toast("La clave de anfitrión tiene que ser distinta de la de invitados.", true); return; }
     var bg = document.getElementById("eBg").value.trim();
     if (bg && !T.playlistId(bg) && !T.ytId(bg)) { toast("El enlace de música no es de YouTube.", true); return; }
     var rec = p || { code: newCode() };

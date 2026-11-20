@@ -249,7 +249,7 @@ $("sCfg").addEventListener("click", showSetup);
 $("gear").addEventListener("click", function () { if (ADMIN) { if (started) { $("start").classList.remove("on"); } return; } showSetup(); });
 
 function localHashes() {
-  return Promise.all([T.hash(cfg.code + ":" + cfg.pw), T.hash(cfg.code + ":" + cfg.hostpw)]).then(function (h) { H.pw = h[0]; H.host = h[1]; });
+  return Promise.all([T.hash(cfg.code + ":" + T.pw(cfg.pw)), T.hash(cfg.code + ":" + T.pw(cfg.hostpw))]).then(function (h) { H.pw = h[0]; H.host = h[1]; });
 }
 function onMessage(topic, m) {
   if (topic === tp.config) { applyConfig(m); return; }
