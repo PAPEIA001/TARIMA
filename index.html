@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0b11">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Tarima karaoke</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+<script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
+<script>window.mqtt || document.write('<script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
+<script src="shared.js"></script>
+</head>
+<body>
+<div class="app" id="app"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+(function () {
+"use strict";
+var ICON = {
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 11 12 4l9 7v9h-6v-6H9v6H3z"/></svg>',
+  search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>',
+  queue:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h12M4 12h12M4 18h8"/><path d="M19 14v6m-3-3h6"/></svg>',
+  music:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>',
+  party:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.8.8 3 2.6 3.5 5.2"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>',
+  x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  up:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 6-6 6 6"/></svg>',
+  skip:'<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>',
+  mic:'<svg viewBox="0 0 40 40" fill="none"><circle cx="24" cy="14" r="10" fill="#ff3d7f"/><path d="M17 21 5 33l2 2 12-12" stroke="#ffb547" stroke-width="4" stroke-linecap="round"/></svg>'
+};
+var GENRES = ["Todo", "Española", "Latino", "Clásicos", "Baladas"];
+var $app = document.getElementById("app");
+var params = new URLSearchParams(location.search);
+var S = {
+  cid: T.store("cid") || T.rand(10),
+  session: T.store("session"),
+  conn: null, code: null, topics: null, state: null, lastState: 0, linkCount: 0,
+  tab: "home", genre: "Todo", q: "", yt: null, ytBusy: false, pending: {}
+};
+T.store("cid", S.cid);
+var esc = T.esc;
+
+/* ---------- connection ---------- */
+function openConn(code) {
+  if (S.conn && S.code === code) return;
+  S.code = code; S.topics = T.topics(code); S.state = null;
+  S.conn = T.connect([S.topics.state, S.topics.res(S.cid)], onMsg, function (n, why) {
+    S.linkCount = n; S.libMissing = why === "nolib"; paintConn();
+  });
+}
+function onMsg(topic, m) {
+  if (!S.topics) return;
+  if (topic === S.topics.state) {
+    if (!S.state || (m.ts || 0) >= (S.state.ts || 0)) { S.state = m; S.lastState = Date.now(); if (S.session) render(true); }
+  } else if (topic === S.topics.res(S.cid) && m.rid && S.pending[m.rid]) {
+    var p = S.pending[m.rid]; delete S.pending[m.rid]; clearTimeout(p.t); p.cb(m);
+  }
+}
+function waitLinked(ms) {
+  return new Promise(function (res) {
+    var t0 = Date.now();
+    (function chk() { if (S.linkCount > 0) return res(true); if (Date.now() - t0 > ms) return res(false); setTimeout(chk, 200); })();
+  });
+}
+function send(cmd, timeout) {
+  return new Promise(function (resolve) {
+    var rid = T.rand(10);
+    cmd.rid = rid; cmd.cid = S.cid;
+    if (S.session) { cmd.auth = S.session.auth; cmd.name = S.session.name; }
+    S.pending[rid] = { cb: resolve, t: setTimeout(function () { delete S.pending[rid]; resolve({ ok: false, err: "timeout" }); }, timeout || 8000) };
+    S.conn.publish(S.topics.cmd, cmd);
+  });
+}
+function errText(r) {
+  var map = {
+    timeout: "La tele no responde. Comprueba que tiene abierta la pantalla de Tarima.",
+    auth: "Contraseña incorrecta. Pídesela al anfitrión.",
+    limit: "Ya tienes el máximo de canciones en cola. Espera a cantar una.",
+    dup: "Ya tienes esa canción en la cola.",
+    badurl: "No reconozco ese enlace de YouTube.",
+    host: "Solo el anfitrión puede hacer eso.",
+    nokey: "La búsqueda en YouTube no está activada. Pega un enlace o elige del catálogo.",
+    search: "La búsqueda de YouTube ha fallado. Prueba otra vez o pega un enlace."
+  };
+  return map[r.err] || r.msg || "Algo ha fallado. Prueba otra vez.";
+}
+
+var toastT;
+function toast(msg, bad) {
+  var el = document.getElementById("toast");
+  el.textContent = msg; el.className = "toast show" + (bad ? " bad" : "");
+  clearTimeout(toastT); toastT = setTimeout(function () { el.className = "toast" + (bad ? " bad" : ""); }, 2600);
+}
+
+/* ---------- login ---------- */
+function renderLogin(prefill) {
+  prefill = prefill || {};
+  var code = prefill.code || params.get("p") || (S.session && S.session.code) || "";
+  $app.innerHTML = '<form class="login" id="lf" novalidate>' +
+    '<div class="logo">' + ICON.mic + 'Tarima</div>' +
+    '<p class="muted" style="margin:6px 0 26px">Entra a la fiesta y pide tu canción de karaoke.</p>' +
+    '<div class="field"><label for="lc">Código de la fiesta</label><input id="lc" value="' + esc(code) + '" autocapitalize="characters" autocomplete="off" maxlength="8" placeholder="Sale en la tele" required></div>' +
+    '<div class="field"><label for="ln">Tu nombre</label><input id="ln" value="' + esc(prefill.name || (S.session && S.session.name) || "") + '" autocomplete="nickname" maxlength="16" placeholder="Así saldrás en la tele" required></div>' +
+    '<div class="field"><label for="lp">Contraseña de la fiesta</label><input id="lp" type="password" autocomplete="current-password" placeholder="Te la da el anfitrión" required></div>' +
+    '<button class="btn" id="lb" type="submit">Entrar a la fiesta</button>' +
+    '<p class="err" id="le" role="alert">' + esc(prefill.err || "") + '</p></form>';
+  if (code) document.getElementById(prefill.name ? "lp" : "ln").focus();
+  document.getElementById("lf").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var c = document.getElementById("lc").value.trim().toUpperCase();
+    var n = document.getElementById("ln").value.trim().replace(/\s+/g, " ");
+    var p = document.getElementById("lp").value;
+    var le = document.getElementById("le"), lb = document.getElementById("lb");
+    if (!c || !n || !p) { le.textContent = "Rellena el código, tu nombre y la contraseña."; return; }
+    lb.disabled = true; lb.textContent = "Conectando…"; le.textContent = "";
+    login(c, n, p).then(function (msg) {
+      if (msg) { lb.disabled = false; lb.textContent = "Entrar a la fiesta"; le.textContent = msg; }
+    });
+  });
+}
+function login(code, name, pw) {
+  openConn(code);
+  return T.hash(code + ":" + pw).then(function (auth) {
+    return waitLinked(10000).then(function (ok) {
+      if (!ok) return S.libMissing ? "No se ha podido cargar la app. Recarga la página." : "Sin conexión con el servidor. Revisa tu internet y prueba otra vez.";
+      S.session = { code: code, name: name, auth: auth };
+      return send({ type: "join" }).then(function (r) {
+        if (!r.ok) { S.session = null; return r.err === "timeout" ? "No encuentro esa fiesta. Revisa el código y que la tele tenga Tarima abierta." : errText(r); }
+        S.session.host = !!r.host; T.store("session", S.session);
+        history.replaceState(null, "", location.pathname + "?p=" + code);
+        S.tab = "home"; render();
+        toast(r.host ? "Has entrado como anfitrión" : "¡Bienvenido, " + name + "!");
+        return null;
+      });
+    });
+  });
+}
+
+/* ---------- app shell ---------- */
+function paintConn() {
+  var el = document.getElementById("conn"); if (!el) return;
+  var stale = S.state && Date.now() - S.lastState > 45000;
+  var cls = S.linkCount === 0 ? "off" : (!S.state || stale ? "" : "on");
+  var txt = S.linkCount === 0 ? "Sin conexión" : (!S.state ? "Buscando la tele…" : stale ? "La tele no responde" : "Conectado a la tele");
+  el.className = "conn " + cls; el.innerHTML = "<i></i>" + txt;
+}
+setInterval(paintConn, 5000);
+
+function st() { return S.state || { queue: [], guests: [], now: null, bg: {} }; }
+function mine() { return st().queue.filter(function (q) { return q.singerId === S.cid; }); }
+
+function render(soft) {
+  if (!S.session) { renderLogin(); return; }
+  var view = document.getElementById("view");
+  if (soft && view) {
+    var focused = document.activeElement && document.activeElement.id;
+    if (S.tab === "search" && (focused === "qInput" || focused === "linkUrl" || focused === "linkTitle")) { paintMini(); paintTabs(); return; }
+    var y = view.scrollTop;
+    view.innerHTML = VIEWS[S.tab](); bindView();
+    view.scrollTop = y; paintMini(); paintTabs(); return;
+  }
+  var s = st();
+  $app.innerHTML =
+    '<div class="topbar"><span class="party">' + esc(s.name || "Fiesta") + " · " + esc(S.session.code) + '</span><span class="conn" id="conn"><i></i></span></div>' +
+    '<main class="view" id="view">' + VIEWS[S.tab]() + "</main>" +
+    '<div id="mini"></div><nav class="tabs" id="tabs" role="tablist" aria-label="Secciones"></nav>';
+  bindView(); paintMini(); paintTabs(); paintConn();
+}
+function paintTabs() {
+  var tabs = [["home", "Inicio"], ["search", "Buscar"], ["queue", "Cola"], ["music", "Música"], ["party", "Fiesta"]];
+  var n = mine().length, el = document.getElementById("tabs"); if (!el) return;
+  el.innerHTML = tabs.map(function (t) {
+    return '<button type="button" role="tab" aria-selected="' + (S.tab === t[0]) + '" data-tab="' + t[0] + '">' + ICON[t[0]] + t[1] +
+      (t[0] === "queue" && n ? '<span class="badge">' + n + "</span>" : "") + "</button>";
+  }).join("");
+  el.querySelectorAll("[data-tab]").forEach(function (b) {
+    b.addEventListener("click", function () { S.tab = b.dataset.tab; var v = document.getElementById("view"); v.innerHTML = VIEWS[S.tab](); v.scrollTop = 0; bindView(); paintTabs(); });
+  });
+}
+function paintMini() {
+  var el = document.getElementById("mini"); if (!el) return;
+  var s = st(), n = s.now;
+  if (n) {
+    var pct = n.dur ? Math.min(100, (n.pos || 0) / n.dur * 100) : 0;
+    var label = n.phase === "intro" ? "Sube a la tarima " : n.phase === "outro" ? "Aplausos para " : "Canta ";
+    el.innerHTML = '<div class="mini">' + T.art(n.t, 38) + '<div style="flex:1;min-width:0"><b>' + esc(n.t) + "</b><small>" + label + esc(n.singer) + ' · en la tele</small></div><div class="bar"><i style="width:' + pct + '%"></i></div></div>';
+  } else {
+    var bg = s.bg || {};
+    el.innerHTML = '<div class="mini" style="background:#1f2a3a">' + T.art(bg.title || "Música", 38) + '<div style="flex:1;min-width:0"><b>' +
+      esc(bg.set ? (bg.title || "Música de fondo") : "La tele está libre") + "</b><small>" + (bg.set ? (bg.on ? "Música de fondo sonando" : "Música de fondo en pausa") : "Pide una canción para empezar") + "</small></div></div>";
+  }
+}
+
+/* ---------- views ---------- */
+function inQueue(songId) { return st().queue.some(function (q) { return q.singerId === S.cid && q.songId === songId; }); }
+function songRow(s) {
+  var done = inQueue(s.id);
+  return '<div class="row">' + T.art(s.t, 48) + '<div class="meta"><b>' + esc(s.t) + "</b><small>" + esc(s.a) + "</small></div>" +
+    '<button class="icon-btn add' + (done ? " done" : "") + '" type="button" data-add="' + s.id + '" aria-label="' + (done ? "Ya en tu cola" : "Añadir a la cola") + ": " + esc(s.t) + '">' + (done ? ICON.check : ICON.plus) + "</button></div>";
+}
+function ytRow(r) {
+  return '<div class="row"><div class="art" style="width:64px;height:48px"><img src="https://i.ytimg.com/vi/' + esc(r.vid) + '/mqdefault.jpg" alt="" loading="lazy"></div><div class="meta"><b>' + esc(r.t) + "</b><small>" + esc(r.ch || "YouTube") + "</small></div>" +
+    '<button class="icon-btn add" type="button" data-vid="' + esc(r.vid) + '" data-title="' + esc(r.t) + '" data-ch="' + esc(r.ch || "") + '" aria-label="Añadir a la cola: ' + esc(r.t) + '">' + ICON.plus + "</button></div>";
+}
+var VIEWS = {
+  home: function () {
+    var s = st(), q = s.queue, pos = -1;
+    for (var i = 0; i < q.length; i++) if (q[i].singerId === S.cid) { pos = i + 1; break; }
+    var singingNow = s.now && s.now.singerId === S.cid;
+    var shelf = function (g, title) {
+      return '<div class="h-row"><h3>' + title + '</h3><button class="link" type="button" data-genre="' + g + '">Ver todo</button></div><div class="scroller">' +
+        T.CATALOG.filter(function (x) { return x.g === g; }).map(function (x) {
+          return '<button class="card" type="button" data-add="' + x.id + '" aria-label="Añadir ' + esc(x.t) + '">' + T.art(x.t, 128) + "<b>" + esc(x.t) + "</b><small>" + esc(x.a) + "</small></button>";
+        }).join("") + "</div>";
+    };
+    return '<h2 class="title">Hola, ' + esc(S.session.name) + "</h2>" +
+      '<div class="hero"><small>' + (singingNow ? "Es tu momento" : pos > 0 ? "Tu turno" : "Aún no estás en la cola") + "</small><b>" +
+      (singingNow ? "¡Estás en la tarima!" : pos > 0 ? (pos === 1 ? "Eres el siguiente" : "Cantas dentro de " + pos + " canciones") : "Elige una canción y sube a la tarima") +
+      '</b><span style="font-size:13px;opacity:.9">' + q.length + " en cola · " + (s.guests || []).length + " invitados</span></div>" +
+      shelf("Española", "Para cantar a grito pelado") + shelf("Latino", "Latino y reggaetón") + shelf("Clásicos", "Clásicos que todos saben") + shelf("Baladas", "Baladas para lucirse") +
+      '<p class="note" style="margin-top:20px">¿No está tu canción? Búscala en la pestaña Buscar o pega un enlace de YouTube.</p>';
+  },
+  search: function () {
+    var s = st(), q = T.norm(S.q);
+    var list = T.CATALOG.filter(function (x) { return (S.genre === "Todo" || x.g === S.genre) && (!q || T.norm(x.t + " " + x.a).indexOf(q) >= 0); });
+    var ytBlock = "";
+    if (S.q.trim()) {
+      if (s.canSearch) {
+        ytBlock = '<div class="h-row"><h3>En YouTube</h3>' + (S.ytBusy ? '<span class="link">Buscando…</span>' : "") + "</div>" +
+          (S.yt && S.yt.q === S.q.trim() ? (S.yt.items.length ? S.yt.items.map(ytRow).join("") : '<p class="muted">Sin resultados de karaoke para eso.</p>') :
+            '<button class="btn sec" type="button" id="ytGo">Buscar «' + esc(S.q.trim()) + ' karaoke» en YouTube</button>');
+      }
+    }
+    return '<h2 class="title">Buscar</h2>' +
+      '<form id="sf"><label class="search" for="qInput">' + ICON.search.replace("<svg", '<svg width="20" height="20"') + '<input id="qInput" type="search" enterkeyhint="search" placeholder="Canción o artista" value="' + esc(S.q) + '"></label></form>' +
+      '<div class="chips">' + GENRES.map(function (g) { return '<button class="chip" type="button" data-genre="' + g + '" aria-pressed="' + (S.genre === g) + '">' + g + "</button>"; }).join("") + "</div>" +
+      '<div class="h-row"><h3>Catálogo</h3><span class="link">' + list.length + "</span></div>" +
+      (list.map(songRow).join("") || '<p class="muted">No está en el catálogo.</p>') + ytBlock +
+      '<div class="h-row"><h3>Pegar enlace de YouTube</h3></div>' +
+      '<div class="box"><span class="muted" style="font-size:13px">Busca el karaoke en la app de YouTube, pulsa Compartir, copia el enlace y pégalo aquí.</span>' +
+      '<div class="field" style="margin:0"><label for="linkUrl">Enlace</label><input id="linkUrl" inputmode="url" placeholder="https://youtu.be/…"></div>' +
+      '<div class="field" style="margin:0"><label for="linkTitle">Nombre de la canción (opcional)</label><input id="linkTitle" maxlength="60" placeholder="Para que salga en la tele"></div>' +
+      '<div class="inline"><button class="btn small" type="button" id="linkAdd">Añadir a la cola</button>' +
+      '<a class="link" id="ytOpen" href="https://www.youtube.com/results?search_query=' + encodeURIComponent((S.q.trim() || "") + " karaoke") + '" target="_blank" rel="noopener">Abrir YouTube</a></div></div>';
+  },
+  queue: function () {
+    var s = st(), n = s.now, host = S.session.host;
+    var nowBlock = n ? '<div class="now">' + T.art(n.t, 56) + '<div class="meta" style="flex:1;min-width:0"><b style="display:block;font-size:15px">' + esc(n.t) + '</b><small class="muted">' + esc(n.a || "") + '</small><div style="font-size:13px;margin-top:4px;display:flex;gap:6px;align-items:center">' + T.avatar(n.singer) + esc(n.singer) + "</div></div>" +
+      (host || n.singerId === S.cid ? '<button class="btn small sec" type="button" data-act="skip">' + ICON.skip + " Saltar</button>" : '<div class="eq" aria-hidden="true"><i></i><i></i><i></i></div>') + "</div>"
+      : '<div class="box"><span class="muted">La tele está esperando. Añade una canción para empezar.</span></div>';
+    var list = s.queue.map(function (q, i) {
+      var me = q.singerId === S.cid;
+      return '<div class="row"><span class="pos">' + (i + 1) + "</span>" + T.art(q.t, 44) + '<div class="meta"><b>' + esc(q.t) + '</b><small style="display:flex;gap:5px;align-items:center">' + T.avatar(q.singer, 18) + esc(q.singer) + (me ? " · tú" : "") + "</small></div>" +
+        (host && i > 0 ? '<button class="icon-btn" type="button" data-up="' + q.qid + '" aria-label="Subir ' + esc(q.t) + '">' + ICON.up + "</button>" : "") +
+        (me || host ? '<button class="icon-btn" type="button" data-del="' + q.qid + '" aria-label="Quitar ' + esc(q.t) + '">' + ICON.x + "</button>" : "") + "</div>";
+    }).join("");
+    return '<h2 class="title">Cola</h2><div class="h-row"><h3>En la tarima</h3></div>' + nowBlock +
+      '<div class="h-row"><h3>Siguientes</h3><span class="link">' + s.queue.length + "</span></div>" +
+      (list || '<p class="muted">No hay nadie en cola.</p>') +
+      (host ? '<p class="note">Eres anfitrión: puedes subir, quitar y saltar cualquier canción.</p>' : '<p class="note">Puedes quitar tus canciones. El anfitrión puede reordenar la cola.</p>');
+  },
+  music: function () {
+    var s = st(), bg = s.bg || {}, host = S.session.host;
+    return '<h2 class="title">Música de fondo</h2><p class="muted" style="margin:4px 0 12px;font-size:13.5px">Suena en la tele cuando nadie está cantando y se pausa sola al empezar un karaoke.</p>' +
+      '<div class="box"><div class="row" style="padding:0">' + T.art(bg.title || "Música", 56) + '<div class="meta"><b>' + esc(bg.set ? (bg.title || "Playlist de YouTube") : "Sin música de fondo") + "</b><small>" +
+      (bg.set ? (s.now ? "En pausa mientras alguien canta" : bg.on ? "Sonando en la tele" : "En pausa") : "El anfitrión puede poner una playlist") + "</small></div></div>" +
+      (host && bg.set ? '<div class="inline"><button class="btn small sec" type="button" data-bg="toggle">' + (bg.on ? "Pausar" : "Reproducir") + '</button><button class="btn small sec" type="button" data-bg="next">Siguiente canción</button></div>' : "") + "</div>" +
+      (host ? '<div class="h-row"><h3>Poner una playlist</h3></div><div class="box"><span class="muted" style="font-size:13px">Pega el enlace de una playlist de YouTube (en YouTube: playlist, Compartir, Copiar enlace).</span>' +
+        '<div class="field" style="margin:0"><label for="bgUrl">Enlace de la playlist</label><input id="bgUrl" inputmode="url" placeholder="https://youtube.com/playlist?list=…"></div>' +
+        '<button class="btn small" type="button" id="bgSet">Usar esta playlist</button></div>' : "") +
+      '<div class="h-row"><h3>Spotify</h3></div><div class="box"><span class="muted" style="font-size:13px">En esta beta la música de fondo va con YouTube. Si prefieres Spotify, ponlo desde tu móvil en la tele o en el altavoz con Spotify Connect y páusalo al empezar el karaoke. El control automático de Spotify llegará en la siguiente versión.</span></div>';
+  },
+  party: function () {
+    var s = st(), host = S.session.host, link = T.siteBase() + "?p=" + S.session.code;
+    return '<h2 class="title">' + esc(s.name || "Fiesta") + "</h2>" +
+      '<div class="box" style="margin-top:12px"><span class="muted" style="font-size:13px">Código de la fiesta</span><b style="font-family:var(--display);font-size:28px;letter-spacing:.06em">' + esc(S.session.code) + "</b>" +
+      '<span class="muted" style="font-size:13px;word-break:break-all">' + esc(link) + '</span><button class="btn small sec" type="button" id="copyLink">Copiar enlace para invitar</button></div>' +
+      (host ? '<div class="switch"><span>Máximo 2 canciones por persona<small>Para que cante todo el mundo</small></span><button class="tog" type="button" role="switch" aria-checked="' + (s.limit !== false) + '" data-set="limit" aria-label="Límite de canciones"></button></div>' +
+        '<div class="switch"><span>Estilo de intro<small>Cómo se presenta a cada cantante</small></span><select id="introSel" style="background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:8px">' +
+        [["neon", "Neón"], ["confeti", "Confeti"], ["retro", "Retro 80s"]].map(function (o) { return '<option value="' + o[0] + '"' + (s.intro === o[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + "</select></div>" +
+        '<div class="switch" style="display:grid"><span>Búsqueda en YouTube<small>' + (s.canSearch ? "Activada" : "Pega aquí una clave de la YouTube Data API para buscar cualquier canción") + '</small></span>' +
+        '<div class="inline"><input id="apiKey" style="background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:10px;flex:1;min-width:0" placeholder="Clave de API" autocomplete="off"><button class="btn small" type="button" id="keySet">Guardar</button></div></div>' : "") +
+      '<div class="h-row"><h3>Invitados (' + (s.guests || []).length + ")</h3></div>" +
+      (s.guests || []).map(function (g) {
+        var c = s.queue.filter(function (q) { return q.singerId === g.id; }).length;
+        return '<div class="row">' + T.avatar(g.name, 36) + '<div class="meta"><b>' + esc(g.name) + (g.id === S.cid ? " (tú)" : "") + (g.host ? " · anfitrión" : "") + "</b><small>" + c + " en cola</small></div></div>";
+      }).join("") +
+      '<button class="btn sec" type="button" id="logout" style="margin-top:16px">Salir de la fiesta</button>';
+  }
+};
+
+function addCmd(cmd) {
+  return send(cmd).then(function (r) {
+    if (r.ok) toast(r.pos ? "¡Añadida! Vas en el puesto " + r.pos : "¡Añadida! Empiezas ahora, mira la tele");
+    else toast(errText(r), true);
+    return r;
+  });
+}
+function bindView() {
+  var v = document.getElementById("view");
+  v.querySelectorAll("[data-add]").forEach(function (b) { b.addEventListener("click", function () { addCmd({ type: "add", songId: b.dataset.add }); }); });
+  v.querySelectorAll("[data-vid]").forEach(function (b) { b.addEventListener("click", function () { addCmd({ type: "add", vid: b.dataset.vid, title: b.dataset.title, ch: b.dataset.ch }); }); });
+  v.querySelectorAll("[data-genre]").forEach(function (b) { b.addEventListener("click", function () { S.genre = b.dataset.genre; S.tab = "search"; v.innerHTML = VIEWS.search(); bindView(); paintTabs(); }); });
+  v.querySelectorAll("[data-del]").forEach(function (b) { b.addEventListener("click", function () { send({ type: "remove", qid: b.dataset.del }).then(function (r) { if (!r.ok) toast(errText(r), true); }); }); });
+  v.querySelectorAll("[data-up]").forEach(function (b) { b.addEventListener("click", function () { send({ type: "up", qid: b.dataset.up }).then(function (r) { if (!r.ok) toast(errText(r), true); }); }); });
+  v.querySelectorAll("[data-act=skip]").forEach(function (b) { b.addEventListener("click", function () { send({ type: "skip" }).then(function (r) { if (!r.ok) toast(errText(r), true); }); }); });
+  v.querySelectorAll("[data-bg]").forEach(function (b) { b.addEventListener("click", function () { send({ type: "bg", action: b.dataset.bg }).then(function (r) { if (!r.ok) toast(errText(r), true); }); }); });
+  v.querySelectorAll("[data-set=limit]").forEach(function (b) { b.addEventListener("click", function () { send({ type: "settings", limit: b.getAttribute("aria-checked") !== "true" }); }); });
+
+  var qi = document.getElementById("qInput");
+  if (qi) {
+    var refresh = function () {
+      var tmp = document.createElement("div"); tmp.innerHTML = VIEWS.search();
+      // repaint everything below the search box, keep the input (and keyboard) in place
+      var form = document.getElementById("sf");
+      while (form.nextSibling) form.parentNode.removeChild(form.nextSibling);
+      var kids = Array.prototype.slice.call(tmp.children), after = false;
+      kids.forEach(function (k) { if (after) form.parentNode.appendChild(k); if (k.id === "sf") after = true; });
+      bindView();
+    };
+    qi.addEventListener("input", function () { S.q = qi.value; S.yt = null; refresh(); });
+    var doYt = function () {
+      var q = S.q.trim(); if (!q || !st().canSearch || S.ytBusy) return;
+      S.ytBusy = true; refresh();
+      send({ type: "search", q: q }, 12000).then(function (r) {
+        S.ytBusy = false;
+        if (r.ok) S.yt = { q: q, items: r.items || [] }; else toast(errText(r), true);
+        if (S.tab === "search") refresh();
+      });
+    };
+    document.getElementById("sf").addEventListener("submit", function (e) { e.preventDefault(); qi.blur(); doYt(); });
+    var go = document.getElementById("ytGo"); if (go) go.addEventListener("click", doYt);
+    document.getElementById("linkAdd").addEventListener("click", function () {
+      var u = document.getElementById("linkUrl").value, t = document.getElementById("linkTitle").value.trim();
+      if (!T.ytId(u)) { toast("Pega un enlace de un vídeo de YouTube.", true); return; }
+      addCmd({ type: "add", url: u, title: t }).then(function (r) { if (r.ok) { document.getElementById("linkUrl").value = ""; document.getElementById("linkTitle").value = ""; } });
+    });
+  }
+  var bs = document.getElementById("bgSet");
+  if (bs) bs.addEventListener("click", function () {
+    var u = document.getElementById("bgUrl").value;
+    if (!T.playlistId(u) && !T.ytId(u)) { toast("Pega el enlace de una playlist o de un vídeo de YouTube.", true); return; }
+    send({ type: "bg", action: "set", url: u }).then(function (r) { toast(r.ok ? "Playlist puesta en la tele" : errText(r), !r.ok); });
+  });
+  var ks = document.getElementById("keySet");
+  if (ks) ks.addEventListener("click", function () {
+    var k = document.getElementById("apiKey").value.trim(); if (!k) return;
+    send({ type: "settings", key: k }).then(function (r) { toast(r.ok ? "Búsqueda en YouTube activada" : errText(r), !r.ok); });
+  });
+  var is = document.getElementById("introSel");
+  if (is) is.addEventListener("change", function () { send({ type: "settings", intro: is.value }); });
+  var cl = document.getElementById("copyLink");
+  if (cl) cl.addEventListener("click", function () {
+    var link = T.siteBase() + "?p=" + S.session.code;
+    if (navigator.share) { navigator.share({ title: "Tarima karaoke", text: "Únete al karaoke", url: link }).catch(function () {}); return; }
+    if (navigator.clipboard) navigator.clipboard.writeText(link).then(function () { toast("Enlace copiado"); }, function () { toast("No se pudo copiar. Copia el enlace a mano.", true); });
+  });
+  var lo = document.getElementById("logout");
+  if (lo) lo.addEventListener("click", function () { var name = S.session.name; S.session = null; T.store("session", null); renderLogin({ name: name }); });
+}
+
+/* ---------- start ---------- */
+var p = params.get("p");
+if (S.session && (!p || p.toUpperCase() === S.session.code)) {
+  openConn(S.session.code); render();
+  // re-join silently so the TV knows we are here
+  waitLinked(10000).then(function (ok) {
+    if (!ok) return;
+    send({ type: "join" }).then(function (r) {
+      if (r.ok) { S.session.host = !!r.host; T.store("session", S.session); render(true); }
+      else if (r.err === "auth") { var n = S.session.name; S.session = null; T.store("session", null); renderLogin({ name: n, err: "La contraseña de la fiesta ha cambiado. Vuelve a entrar." }); }
+    });
+  });
+} else {
+  renderLogin();
+}
+})();
+</script>
+</body>
+</html>
