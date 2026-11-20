@@ -2,12 +2,12 @@
 
 Web app de karaoke para fiestas privadas. No hay nada que instalar: los invitados entran desde el navegador del móvil y la tele abre una página web.
 
-- **Móviles de los invitados:** `https://papeia001.github.io/tarima/`
-- **Tele:** `https://papeia001.github.io/tarima/tv.html`
+- **Móviles de los invitados:** `https://papeia001.github.io/TARIMA/`
+- **Tele:** `https://papeia001.github.io/TARIMA/tv.html`
 
 ## La noche de la fiesta
 
-1. **Enciende la tele** (Samsung) y abre la app **Internet**. Escribe la dirección de la tele (`…/tarima/tv.html`) y guárdala en favoritos para no tener que escribirla más.
+1. **Enciende la tele** (Samsung) y abre la app **Internet**. Escribe la dirección de la tele (`…/TARIMA/tv.html`) y guárdala en favoritos para no tener que escribirla más.
    - Si prefieres un portátil, conéctalo a la tele por HDMI y abre la misma dirección en Chrome. Es la opción más estable.
 2. **La primera vez** sale la pantalla de ajustes: nombre de la fiesta, contraseña para los invitados (por defecto `fiesta`) y la clave de anfitrión (un número de 4 cifras). Pulsa **Guardar y empezar**.
    - Las siguientes veces solo verás **Empezar la fiesta**. Púlsalo con el mando: ese clic activa el sonido y la pantalla completa.
