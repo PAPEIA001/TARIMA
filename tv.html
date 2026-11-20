@@ -10,7 +10,7 @@
 <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
 <script>window.mqtt || document.write('<script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="shared.js?v=1795201224"></script>
+<script src="shared.js?v=1795201349"></script>
 <style>
 /* TV screen: full-window stage with four layers (idle, intro, playing, applause). Sizes in vw so it scales to any TV. */
 :root{
@@ -96,7 +96,7 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
 #notice.show{transform:translate(-50%,0);opacity:1}
 #gear{position:fixed;right:1vw;bottom:1vw;z-index:20;background:rgba(255,255,255,.06);border:0;border-radius:99px;padding:.5vw 1.1vw;font-size:1vw;color:var(--muted);opacity:.5}
 #gear:focus-visible,#gear:hover{opacity:1}
-#playFix{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:21;display:none}
+#playFix{position:fixed;left:2vw;bottom:5vw;z-index:21;display:none;font-size:clamp(14px,1.2vw,22px);padding:.8vw 1.6vw;background:rgba(0,0,0,.75);border:2px solid var(--accent)}
 .screen{position:fixed;inset:0;z-index:30;background:var(--bg);overflow-y:auto;display:none}
 .screen.on{display:block}
 .panel{max-width:min(980px,92vw);margin:0 auto;padding:4vh 3vw;display:grid;gap:2.2vh}
@@ -151,7 +151,7 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
   <section class="layer" id="L-outro"><div><h2 id="oTitle"></h2><p id="oNext"></p></div></section>
 </div>
 <div id="notice" role="status"></div>
-<button id="playFix" class="big" type="button">Pulsa OK para reproducir</button>
+<button id="playFix" class="big" type="button">¿No se mueve el vídeo? Pulsa OK</button>
 <button id="gear" type="button">Ajustes</button>
 
 <div class="screen" id="setup">
@@ -425,6 +425,7 @@ function outro() {
 setInterval(function () {
   if (phase !== "playing" || !mainP || !mainP.getCurrentTime) return;
   var t = mainP.getCurrentTime() || 0, d = mainP.getDuration() || 0;
+  if (mainP.getPlayerState && mainP.getPlayerState() === 1) hidePlayFix();
   $("pt").textContent = T.mmss(t); $("pd").textContent = T.mmss(d);
   $("pbar").style.width = d ? (t / d * 100) + "%" : "0";
 }, 500);
