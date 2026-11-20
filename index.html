@@ -49,12 +49,19 @@ var esc = T.esc;
 function openConn(code) {
   if (S.conn && S.code === code) return;
   S.code = code; S.topics = T.topics(code); S.state = null;
-  S.conn = T.connect([S.topics.state, S.topics.res(S.cid)], onMsg, function (n, why) {
+  S.config = null;
+  S.conn = T.connect([S.topics.state, S.topics.res(S.cid), S.topics.config], onMsg, function (n, why) {
     S.linkCount = n; S.libMissing = why === "nolib"; paintConn();
   });
 }
 function onMsg(topic, m) {
   if (!S.topics) return;
+  if (topic === S.topics.config) {
+    if (!m || m.code !== S.code) return;
+    S.config = m; T.applyColor(m.color);
+    if (S.session) render(true); else paintHead();
+    return;
+  }
   if (topic === S.topics.state) {
     if (!S.state || (m.ts || 0) >= (S.state.ts || 0)) { S.state = m; S.lastState = Date.now(); if (S.session) render(true); }
   } else if (topic === S.topics.res(S.cid) && m.rid && S.pending[m.rid]) {
@@ -102,14 +109,15 @@ function renderLogin(prefill) {
   prefill = prefill || {};
   var code = prefill.code || params.get("p") || (S.session && S.session.code) || "";
   $app.innerHTML = '<form class="login" id="lf" novalidate>' +
-    '<div class="logo">' + ICON.mic + 'Tarima</div>' +
-    '<p class="muted" style="margin:6px 0 26px">Entra a la fiesta y pide tu canción de karaoke.</p>' +
+    '<div id="partyHead"><div class="logo">' + ICON.mic + 'Tarima</div>' +
+    '<p class="muted" style="margin:6px 0 26px">Entra a la fiesta y pide tu canción de karaoke.</p></div>' +
     '<div class="field"><label for="lc">Código de la fiesta</label><input id="lc" value="' + esc(code) + '" autocapitalize="characters" autocomplete="off" maxlength="8" placeholder="Sale en la tele" required></div>' +
     '<div class="field"><label for="ln">Tu nombre</label><input id="ln" value="' + esc(prefill.name || (S.session && S.session.name) || "") + '" autocomplete="nickname" maxlength="16" placeholder="Así saldrás en la tele" required></div>' +
     '<div class="field"><label for="lp">Contraseña de la fiesta</label><input id="lp" type="password" autocomplete="current-password" placeholder="Te la da el anfitrión" required></div>' +
     '<button class="btn" id="lb" type="submit">Entrar a la fiesta</button>' +
-    '<p class="err" id="le" role="alert">' + esc(prefill.err || "") + '</p></form>';
-  if (code) document.getElementById(prefill.name ? "lp" : "ln").focus();
+    '<p class="err" id="le" role="alert">' + esc(prefill.err || "") + '</p>' +
+    '<p style="text-align:center;margin-top:18px"><a class="link" href="admin.html">¿Organizas fiestas? Panel de administrador</a></p></form>';
+  if (code) { document.getElementById(prefill.name ? "lp" : "ln").focus(); openConn(code.toUpperCase()); paintHead(); }
   document.getElementById("lf").addEventListener("submit", function (e) {
     e.preventDefault();
     var c = document.getElementById("lc").value.trim().toUpperCase();
@@ -122,6 +130,13 @@ function renderLogin(prefill) {
       if (msg) { lb.disabled = false; lb.textContent = "Entrar a la fiesta"; le.textContent = msg; }
     });
   });
+}
+function paintHead() {
+  var el = document.getElementById("partyHead"), c = S.config;
+  if (!el || !c) return;
+  el.innerHTML = (c.photo ? '<div class="banner" style="background-image:url(\'' + c.photo + '\')"></div>' : '<div class="logo">' + ICON.mic + "Tarima</div>") +
+    '<h1 style="font-size:30px;margin-top:14px">' + esc(c.name) + "</h1>" +
+    '<p class="muted" style="margin:6px 0 22px">' + esc(c.welcome || "Entra a la fiesta y pide tu canción de karaoke.") + "</p>";
 }
 function login(code, name, pw) {
   openConn(code);
@@ -218,7 +233,9 @@ var VIEWS = {
           return '<button class="card" type="button" data-add="' + x.id + '" aria-label="Añadir ' + esc(x.t) + '">' + T.art(x.t, 128) + "<b>" + esc(x.t) + "</b><small>" + esc(x.a) + "</small></button>";
         }).join("") + "</div>";
     };
-    return '<h2 class="title">Hola, ' + esc(S.session.name) + "</h2>" +
+    var c = S.config;
+    return (c && c.photo ? '<div class="banner" style="margin-top:8px;background-image:url(\'' + c.photo + '\')"><div><b>' + esc(c.name) + "</b>" + (c.welcome ? "<span>" + esc(c.welcome) + "</span>" : "") + "</div></div>" : "") +
+      '<h2 class="title">Hola, ' + esc(S.session.name) + "</h2>" +
       '<div class="hero"><small>' + (singingNow ? "Es tu momento" : pos > 0 ? "Tu turno" : "Aún no estás en la cola") + "</small><b>" +
       (singingNow ? "¡Estás en la tarima!" : pos > 0 ? (pos === 1 ? "Eres el siguiente" : "Cantas dentro de " + pos + " canciones") : "Elige una canción y sube a la tarima") +
       '</b><span style="font-size:13px;opacity:.9">' + q.length + " en cola · " + (s.guests || []).length + " invitados</span></div>" +

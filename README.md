@@ -4,6 +4,19 @@ Web app de karaoke para fiestas privadas. No hay nada que instalar: los invitado
 
 - **Móviles de los invitados:** `https://papeia001.github.io/TARIMA/`
 - **Tele:** `https://papeia001.github.io/TARIMA/tv.html`
+- **Panel de administrador:** `https://papeia001.github.io/TARIMA/admin.html`
+
+## Panel de administrador
+
+Crea tu cuenta de administrador (usuario y contraseña) y desde ahí:
+
+- Crea fiestas con nombre, fecha, foto, mensaje de bienvenida, color, estilo de intro y contraseñas propias.
+- Cada fiesta tiene su código, su enlace para la tele (`tv.html?f=CÓDIGO`) y su QR para invitar.
+- Mira en directo quién canta y la cola de cada fiesta.
+- Edita una fiesta en cualquier momento: la tele y los móviles se actualizan solos.
+- En Ajustes, pon la clave de la YouTube Data API una vez y se aplica a todas tus fiestas.
+
+Puedes entrar al panel desde cualquier dispositivo con tu usuario y contraseña. Si olvidas la contraseña no se puede recuperar.
 
 ## La noche de la fiesta
 

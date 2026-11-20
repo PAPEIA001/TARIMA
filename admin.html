@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0b11">
+<title>Tarima · Administrador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+<script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
+<script>window.mqtt || document.write('<script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="shared.js"></script>
+<style>
+/* Admin panel: same visual language as the guest app, a list of party cards and a full-page editor. */
+.adm{max-width:760px;margin:0 auto;min-height:100%;padding:calc(env(safe-area-inset-top) + 16px) 16px 60px;display:grid;gap:16px;align-content:start}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.bar h1{font-size:28px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.pcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;text-align:left;padding:0;display:grid}
+.pcard .ph{aspect-ratio:16/9;background:linear-gradient(135deg,var(--c,#ff3d7f),#2a1530);background-size:cover;background-position:center;position:relative}
+.pcard .ph .live{position:absolute;top:8px;left:8px}
+.pcard .bd{padding:12px 14px;display:grid;gap:3px}
+.pcard b{font-family:var(--display);font-size:18px;line-height:1.15}
+.pcard small{color:var(--muted);font-size:12.5px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:99px;background:rgba(0,0,0,.55);color:#fff;font-size:11.5px;font-weight:700}
+.pill.on{background:var(--ok);color:#06210f}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:14px;padding:28px;text-align:center;color:var(--muted)}
+.photo{aspect-ratio:16/9;border-radius:14px;background:var(--surface2) center/cover no-repeat;border:1px dashed var(--line);display:grid;place-items:center;color:var(--muted);font-size:14px;position:relative;overflow:hidden}
+.photo.has{border-style:solid}
+.photo span{background:rgba(0,0,0,.55);color:#fff;padding:6px 12px;border-radius:99px;font-weight:700}
+.sw{display:flex;gap:10px;flex-wrap:wrap}
+.sw button{width:38px;height:38px;border-radius:50%;border:3px solid transparent}
+.sw button[aria-pressed="true"]{border-color:#fff}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+@media (max-width:560px){.grid2{grid-template-columns:1fr}}
+.hero-ph{aspect-ratio:21/9;border-radius:16px;background:linear-gradient(135deg,var(--accent),#2a1530) center/cover no-repeat;display:flex;align-items:flex-end;padding:16px;position:relative;overflow:hidden}
+.hero-ph::before{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.75),transparent 70%)}
+.hero-ph div{position:relative}
+.hero-ph h1{font-size:30px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:14.5px;align-items:center}
+.kv span{color:var(--muted)}
+.kv b{font-family:var(--display);font-size:20px;letter-spacing:.04em;word-break:break-all}
+.linkrow{display:flex;gap:8px;align-items:center}
+.linkrow code{flex:1;min-width:0;background:var(--surface2);padding:9px 10px;border-radius:8px;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#qr{background:#fff;padding:8px;border-radius:10px;width:148px;height:148px}
+#qr img,#qr canvas{width:100%!important;height:100%!important}
+.danger{background:none;border:1px solid var(--accent);color:var(--accent)}
+.tabsx{display:flex;gap:8px}
+textarea{background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:12px;outline:none;font:inherit;font-size:16px;width:100%;resize:vertical;min-height:70px;color:var(--text)}
+</style>
+</head>
+<body>
+<div class="adm" id="app"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+(function () {
+"use strict";
+var esc = T.esc, $app = document.getElementById("app");
+var A = { h: null, user: null, conn: null, index: null, configs: {}, live: {}, view: "list", edit: null, sel: null };
+var CODE_ABC = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+function toast(msg, bad) {
+  var el = document.getElementById("toast"); el.textContent = msg; el.className = "toast show" + (bad ? " bad" : "");
+  clearTimeout(toast.t); toast.t = setTimeout(function () { el.className = "toast"; }, 2600);
+}
+function linked(ms) {
+  return new Promise(function (res) { var t0 = Date.now(); (function c() { if (A.conn && A.conn.count() > 0) return res(true); if (Date.now() - t0 > ms) return res(false); setTimeout(c, 200); })(); });
+}
+function guestUrl(code) { return T.siteBase() + "?p=" + code; }
+function tvUrl(code) { return T.siteBase() + "tv.html?f=" + code; }
+
+/* ---------- connection ---------- */
+function connect(h) {
+  A.h = h;
+  A.conn = T.connect([T.adminTopic(h)], function (topic, m) {
+    if (topic === T.adminTopic(A.h)) {
+      if (!A.index || (m.ts || 0) >= (A.index.ts || 0)) { A.index = m; watchParties(); if (A.user) render(); }
+      return;
+    }
+    var mm = topic.match(/^tarima\/v1\/([A-Z0-9]+)\/(config|state)$/);
+    if (!mm) return;
+    if (mm[2] === "config") A.configs[mm[1]] = m; else A.live[mm[1]] = { at: Date.now(), ts: m.ts, q: (m.queue || []).length, g: (m.guests || []).length, now: m.now, queue: m.queue || [] };
+    if (A.user) render(true);
+  });
+}
+var watched = {};
+function watchParties() {
+  (A.index.parties || []).forEach(function (p) {
+    if (watched[p.code]) return; watched[p.code] = 1;
+    var tp = T.topics(p.code); A.conn.subscribe(tp.config); A.conn.subscribe(tp.state);
+  });
+}
+function saveIndex() { A.index.ts = Date.now(); A.conn.publish(T.adminTopic(A.h), A.index, true); }
+function publishConfig(p, photo) {
+  return Promise.all([T.hash(p.code + ":" + p.pw), T.hash(p.code + ":" + p.hostpw)]).then(function (h) {
+    var cfg = { code: p.code, name: p.name, date: p.date || "", welcome: p.welcome || "", color: p.color || "rosa", intro: p.intro || "neon",
+      limit: p.limit !== false, bg: p.bg || "", key: A.index.key || "", photo: photo === undefined ? ((A.configs[p.code] || {}).photo || "") : photo,
+      pwHash: h[0], hostHash: h[1], ts: Date.now() };
+    A.configs[p.code] = cfg;
+    A.conn.publish(T.topics(p.code).config, cfg, true);
+  });
+}
+
+/* ---------- login ---------- */
+function renderLogin(mode, err) {
+  mode = mode || "in";
+  $app.innerHTML = '<form class="login" id="lf" novalidate style="padding:0">' +
+    '<div class="logo"><svg viewBox="0 0 40 40" fill="none"><circle cx="24" cy="14" r="10" fill="#ff3d7f"/><path d="M17 21 5 33l2 2 12-12" stroke="#ffb547" stroke-width="4" stroke-linecap="round"/></svg>Tarima</div>' +
+    '<p class="muted" style="margin:6px 0 20px">Panel de administrador: crea y personaliza tus fiestas.</p>' +
+    '<div class="tabsx" style="margin-bottom:16px"><button type="button" class="chip" data-mode="in" aria-pressed="' + (mode === "in") + '">Entrar</button><button type="button" class="chip" data-mode="new" aria-pressed="' + (mode === "new") + '">Crear cuenta</button></div>' +
+    '<div class="field"><label for="au">Usuario</label><input id="au" autocomplete="username" autocapitalize="none" maxlength="30" required></div>' +
+    '<div class="field"><label for="ap">Contraseña</label><input id="ap" type="password" autocomplete="' + (mode === "new" ? "new-password" : "current-password") + '" required></div>' +
+    (mode === "new" ? '<div class="field"><label for="ap2">Repite la contraseña</label><input id="ap2" type="password" autocomplete="new-password" required></div><p class="note" style="margin:0 0 12px">Guárdala bien: sin ella no se puede recuperar la cuenta.</p>' : "") +
+    '<button class="btn" id="ab" type="submit">' + (mode === "new" ? "Crear cuenta" : "Entrar") + '</button><p class="err" id="ae" role="alert">' + esc(err || "") + "</p></form>";
+  $app.querySelectorAll("[data-mode]").forEach(function (b) { b.addEventListener("click", function () { renderLogin(b.dataset.mode); }); });
+  document.getElementById("lf").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var u = document.getElementById("au").value.trim().toLowerCase(), p = document.getElementById("ap").value;
+    var ae = document.getElementById("ae"), ab = document.getElementById("ab");
+    if (!u || p.length < 6) { ae.textContent = "Pon un usuario y una contraseña de al menos 6 caracteres."; return; }
+    if (mode === "new" && p !== document.getElementById("ap2").value) { ae.textContent = "Las contraseñas no coinciden."; return; }
+    ab.disabled = true; ab.textContent = "Conectando…"; ae.textContent = "";
+    T.hash("admin:" + u + ":" + p).then(function (h) {
+      A.index = null; connect(h);
+      return linked(10000).then(function (ok) {
+        if (!ok) throw new Error("Sin conexión con el servidor. Revisa tu internet.");
+        return new Promise(function (res) { var t0 = Date.now(); (function w() { if (A.index || Date.now() - t0 > 5000) return res(); setTimeout(w, 200); })(); });
+      }).then(function () {
+        if (mode === "new") {
+          if (A.index) throw new Error("Esa cuenta ya existe. Entra con ella.");
+          A.index = { user: u, parties: [], key: "", ts: Date.now() }; saveIndex();
+        } else if (!A.index) throw new Error("Usuario o contraseña incorrectos.");
+        A.user = u; T.store("admin", { h: h, user: u }); A.view = "list"; render();
+        toast(mode === "new" ? "Cuenta creada" : "Hola, " + u);
+      });
+    }).catch(function (er) { ab.disabled = false; ab.textContent = mode === "new" ? "Crear cuenta" : "Entrar"; ae.textContent = er.message; });
+  });
+}
+
+/* ---------- views ---------- */
+function isLive(code) { var l = A.live[code]; return l && Date.now() - l.at < 30000 && Date.now() - (l.ts || 0) < 120000; }
+function phStyle(code, color) {
+  var c = A.configs[code], col = T.COLORS[color] || T.COLORS.rosa;
+  return "--c:" + col + ";" + (c && c.photo ? "background-image:url('" + c.photo + "')" : "");
+}
+function render(soft) {
+  if (soft && A.view === "edit") return;
+  var y = window.scrollY;
+  ({ list: vList, edit: vEdit, party: vParty, settings: vSettings })[A.view]();
+  if (soft) window.scrollTo(0, y); else window.scrollTo(0, 0);
+}
+function vList() {
+  var ps = (A.index.parties || []).slice().sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); });
+  $app.innerHTML = '<div class="bar"><h1>Mis fiestas</h1><div class="inline"><button class="btn small sec" type="button" id="set">Ajustes</button><button class="btn small" type="button" id="new">Nueva fiesta</button></div></div>' +
+    (ps.length ? '<div class="cards">' + ps.map(function (p) {
+      var l = A.live[p.code];
+      return '<button class="pcard" type="button" data-p="' + p.code + '"><div class="ph" style="' + phStyle(p.code, p.color) + '">' +
+        (isLive(p.code) ? '<span class="pill on live">En directo · ' + l.q + " en cola</span>" : "") + '</div><div class="bd"><b>' + esc(p.name) + "</b><small>" +
+        (p.date ? esc(fmtDate(p.date)) + " · " : "") + "Código " + esc(p.code) + "</small></div></button>";
+    }).join("") + "</div>" : '<div class="empty"><b style="color:var(--text);font-size:17px">Aún no tienes fiestas</b><p>Crea la primera: ponle nombre, una foto y elige su color.</p></div>') +
+    '<p class="note">Sesión iniciada como ' + esc(A.user) + ".</p>";
+  document.getElementById("new").addEventListener("click", function () { A.edit = null; A.view = "edit"; render(); });
+  document.getElementById("set").addEventListener("click", function () { A.view = "settings"; render(); });
+  $app.querySelectorAll("[data-p]").forEach(function (b) { b.addEventListener("click", function () { A.sel = b.dataset.p; A.view = "party"; render(); }); });
+}
+function fmtDate(d) {
+  try { return new Date(d + "T12:00:00").toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "long", year: "numeric" }); } catch (e) { return d; }
+}
+function findParty(code) { return (A.index.parties || []).filter(function (p) { return p.code === code; })[0]; }
+
+var draftPhoto;
+function vEdit() {
+  var p = A.edit ? findParty(A.edit) : null;
+  var d = p || { name: "", date: "", welcome: "", color: "rosa", intro: "neon", limit: true, pw: "fiesta", hostpw: T.rand(4, "0123456789"), bg: "" };
+  draftPhoto = undefined;
+  var cur = p && A.configs[p.code] && A.configs[p.code].photo;
+  $app.innerHTML = '<div class="bar"><h1>' + (p ? "Editar fiesta" : "Nueva fiesta") + '</h1><button class="btn small sec" type="button" id="back">Cancelar</button></div>' +
+    '<label class="photo' + (cur ? " has" : "") + '" id="phBox" for="phIn" style="' + (cur ? "background-image:url('" + cur + "')" : "") + '"><span>' + (cur ? "Cambiar foto" : "Añadir foto de la fiesta") + '</span></label>' +
+    '<input type="file" id="phIn" accept="image/*" hidden>' +
+    (cur ? '<button type="button" class="link" id="phDel" style="justify-self:start">Quitar foto</button>' : "") +
+    '<form id="ef" novalidate style="display:grid;gap:4px">' +
+    '<div class="field"><label for="eName">Nombre de la fiesta</label><input id="eName" maxlength="40" value="' + esc(d.name) + '" placeholder="Cumple de Lucía" required></div>' +
+    '<div class="grid2"><div class="field"><label for="eDate">Fecha</label><input id="eDate" type="date" value="' + esc(d.date) + '"></div>' +
+    '<div class="field"><label for="eIntro">Estilo de intro</label><select id="eIntro">' + [["neon", "Neón"], ["confeti", "Confeti"], ["retro", "Retro 80s"]].map(function (o) { return '<option value="' + o[0] + '"' + (d.intro === o[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + "</select></div></div>" +
+    '<div class="field"><label for="eWel">Mensaje de bienvenida</label><textarea id="eWel" maxlength="140" placeholder="¡Bienvenidos! Barra libre de canciones hasta las 3">' + esc(d.welcome) + "</textarea></div>" +
+    '<div class="field"><label>Color de la fiesta</label><div class="sw" role="group" aria-label="Color">' + Object.keys(T.COLORS).map(function (k) { return '<button type="button" data-col="' + k + '" aria-label="' + k + '" aria-pressed="' + (d.color === k) + '" style="background:' + T.COLORS[k] + '"></button>'; }).join("") + "</div></div>" +
+    '<div class="grid2"><div class="field"><label for="ePw">Contraseña para invitados</label><input id="ePw" maxlength="30" value="' + esc(d.pw) + '" autocomplete="off"></div>' +
+    '<div class="field"><label for="eHost">Clave de anfitrión</label><input id="eHost" maxlength="30" value="' + esc(d.hostpw) + '" autocomplete="off"></div></div>' +
+    '<div class="field"><label for="eBg">Playlist de música de fondo (opcional)</label><input id="eBg" inputmode="url" value="' + esc(d.bg) + '" placeholder="Enlace de playlist de YouTube"></div>' +
+    '<div class="switch"><span>Máximo 2 canciones por persona<small>Para que cante todo el mundo</small></span><button class="tog" type="button" role="switch" id="eLim" aria-checked="' + (d.limit !== false) + '" aria-label="Límite de canciones"></button></div>' +
+    '<button class="btn" type="submit" style="margin-top:14px">' + (p ? "Guardar cambios" : "Crear fiesta") + "</button>" +
+    (p ? '<button class="btn danger" type="button" id="eDel" style="margin-top:8px">Eliminar fiesta</button><p class="err" id="delMsg"></p>' : "") + "</form>";
+  var color = d.color;
+  document.getElementById("back").addEventListener("click", function () { A.view = p ? "party" : "list"; render(); });
+  $app.querySelectorAll("[data-col]").forEach(function (b) { b.addEventListener("click", function () { color = b.dataset.col; $app.querySelectorAll("[data-col]").forEach(function (x) { x.setAttribute("aria-pressed", x === b); }); }); });
+  var lim = document.getElementById("eLim"); lim.addEventListener("click", function () { lim.setAttribute("aria-checked", lim.getAttribute("aria-checked") !== "true"); });
+  document.getElementById("phIn").addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0]; if (!f) return;
+    shrink(f).then(function (url) {
+      draftPhoto = url; var box = document.getElementById("phBox");
+      box.style.backgroundImage = "url('" + url + "')"; box.classList.add("has"); box.querySelector("span").textContent = "Cambiar foto";
+    }).catch(function () { toast("No he podido leer esa imagen. Prueba con otra.", true); });
+  });
+  var pd = document.getElementById("phDel");
+  if (pd) pd.addEventListener("click", function () { draftPhoto = ""; var box = document.getElementById("phBox"); box.style.backgroundImage = ""; box.classList.remove("has"); box.querySelector("span").textContent = "Añadir foto de la fiesta"; pd.remove(); });
+  var del = document.getElementById("eDel"), armed = false;
+  if (del) del.addEventListener("click", function () {
+    if (!armed) { armed = true; del.textContent = "Pulsa otra vez para eliminarla del todo"; document.getElementById("delMsg").textContent = "Se borrará la fiesta, su foto y su cola. No se puede deshacer."; return; }
+    A.index.parties = A.index.parties.filter(function (x) { return x.code !== p.code; });
+    var tp = T.topics(p.code); A.conn.clear(tp.config); A.conn.clear(tp.state);
+    delete A.configs[p.code]; saveIndex(); A.view = "list"; render(); toast("Fiesta eliminada");
+  });
+  document.getElementById("ef").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var name = document.getElementById("eName").value.trim();
+    if (!name) { toast("Ponle un nombre a la fiesta.", true); document.getElementById("eName").focus(); return; }
+    var pw = document.getElementById("ePw").value.trim(), hp = document.getElementById("eHost").value.trim();
+    if (!pw || !hp) { toast("La contraseña de invitados y la clave de anfitrión no pueden estar vacías.", true); return; }
+    if (pw === hp) { toast("La clave de anfitrión tiene que ser distinta de la de invitados.", true); return; }
+    var bg = document.getElementById("eBg").value.trim();
+    if (bg && !T.playlistId(bg) && !T.ytId(bg)) { toast("El enlace de música no es de YouTube.", true); return; }
+    var rec = p || { code: newCode() };
+    rec.name = name; rec.date = document.getElementById("eDate").value; rec.welcome = document.getElementById("eWel").value.trim();
+    rec.color = color; rec.intro = document.getElementById("eIntro").value; rec.pw = pw; rec.hostpw = hp; rec.bg = bg;
+    rec.limit = lim.getAttribute("aria-checked") === "true";
+    if (!p) A.index.parties.push(rec);
+    saveIndex(); watchParties();
+    publishConfig(rec, draftPhoto).then(function () { A.sel = rec.code; A.view = "party"; render(); toast(p ? "Cambios guardados. La tele se actualiza sola." : "Fiesta creada"); });
+  });
+}
+function newCode() {
+  var used = (A.index.parties || []).map(function (p) { return p.code; }), c;
+  do { c = T.rand(5, CODE_ABC); } while (used.indexOf(c) >= 0);
+  return c;
+}
+function shrink(file) {
+  return new Promise(function (res, rej) {
+    var fr = new FileReader();
+    fr.onerror = rej;
+    fr.onload = function () {
+      var img = new Image();
+      img.onerror = rej;
+      img.onload = function () {
+        var max = 960, w = img.width, h = img.height, k = Math.min(1, max / Math.max(w, h));
+        var cv = document.createElement("canvas"); cv.width = Math.round(w * k); cv.height = Math.round(h * k);
+        cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+        var q = 0.8, url = cv.toDataURL("image/jpeg", q);
+        while (url.length > 150000 && q > 0.35) { q -= 0.1; url = cv.toDataURL("image/jpeg", q); }
+        if (url.length > 150000) { cv.width = Math.round(cv.width * .7); cv.height = Math.round(cv.height * .7); cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height); url = cv.toDataURL("image/jpeg", .6); }
+        res(url);
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+function vParty() {
+  var p = findParty(A.sel); if (!p) { A.view = "list"; render(); return; }
+  T.applyColor(p.color);
+  var c = A.configs[p.code], l = A.live[p.code], live = isLive(p.code);
+  $app.innerHTML = '<div class="bar"><button class="link" type="button" id="back">‹ Mis fiestas</button><button class="btn small sec" type="button" id="edit">Editar</button></div>' +
+    '<div class="hero-ph" style="' + (c && c.photo ? "background-image:url('" + c.photo + "')" : "") + '"><div><span class="pill' + (live ? " on" : "") + '">' + (live ? "En directo" : "Tele apagada") + "</span><h1>" + esc(p.name) + "</h1>" +
+    (p.date ? '<div style="font-size:14px;opacity:.9">' + esc(fmtDate(p.date)) + "</div>" : "") + "</div></div>" +
+    (p.welcome ? '<p style="margin:0">' + esc(p.welcome) + "</p>" : "") +
+    '<div class="box"><div class="kv"><span>Código</span><b>' + esc(p.code) + '</b><span>Invitados</span><b>' + esc(p.pw) + '</b><span>Anfitrión</span><b>' + esc(p.hostpw) + "</b></div></div>" +
+    '<div class="box"><b>Abrir en la tele</b><span class="muted" style="font-size:13px">Escribe esta dirección en el navegador de la tele y pulsa Empezar.</span>' +
+    '<div class="linkrow"><code>' + esc(tvUrl(p.code)) + '</code><button class="btn small sec" type="button" data-copy="' + esc(tvUrl(p.code)) + '">Copiar</button></div>' +
+    '<a class="btn small" style="text-align:center;text-decoration:none" href="' + esc(tvUrl(p.code)) + '" target="_blank" rel="noopener">Abrir pantalla de la tele aquí</a></div>' +
+    '<div class="box"><b>Invitar</b><div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><div id="qr"></div><div style="flex:1;min-width:180px;display:grid;gap:8px"><span class="muted" style="font-size:13px">Este QR también sale en la tele. Puedes mandar el enlace por WhatsApp antes de la fiesta.</span>' +
+    '<div class="linkrow"><code>' + esc(guestUrl(p.code)) + '</code><button class="btn small sec" type="button" data-copy="' + esc(guestUrl(p.code)) + '">Copiar</button></div></div></div></div>' +
+    '<div class="h-row" style="margin:6px 0 0"><h3>Cola en directo</h3><span class="link">' + (l ? l.g + " invitados" : "") + "</span></div>" +
+    (live ? (l.now ? '<div class="now">' + T.art(l.now.t, 48) + '<div class="meta" style="flex:1;min-width:0"><b style="display:block">' + esc(l.now.t) + '</b><small class="muted">Canta ' + esc(l.now.singer) + "</small></div></div>" : "") +
+      (l.queue.length ? l.queue.map(function (q, i) { return '<div class="row"><span class="pos">' + (i + 1) + "</span>" + T.art(q.t, 40) + '<div class="meta"><b>' + esc(q.t) + "</b><small>" + esc(q.singer) + "</small></div></div>"; }).join("") : '<p class="muted" style="margin:0">Nadie en cola ahora mismo.</p>')
+      : '<p class="muted" style="margin:0">Cuando la tele tenga la fiesta abierta verás aquí quién canta y la cola.</p>');
+  document.getElementById("back").addEventListener("click", function () { T.applyColor("rosa"); A.view = "list"; render(); });
+  document.getElementById("edit").addEventListener("click", function () { A.edit = p.code; A.view = "edit"; render(); });
+  $app.querySelectorAll("[data-copy]").forEach(function (b) { b.addEventListener("click", function () {
+    if (navigator.clipboard) navigator.clipboard.writeText(b.dataset.copy).then(function () { toast("Enlace copiado"); }, function () { toast("No se pudo copiar", true); });
+  }); });
+  if (typeof QRCode !== "undefined") new QRCode(document.getElementById("qr"), { text: guestUrl(p.code), width: 256, height: 256, correctLevel: QRCode.CorrectLevel.M });
+}
+function vSettings() {
+  $app.innerHTML = '<div class="bar"><h1>Ajustes</h1><button class="btn small sec" type="button" id="back">Volver</button></div>' +
+    '<div class="box"><b>Búsqueda en YouTube</b><span class="muted" style="font-size:13px">Con una clave gratuita de la YouTube Data API los invitados pueden buscar cualquier canción. Se aplica a todas tus fiestas.</span>' +
+    '<div class="field" style="margin:0"><label for="sKey">Clave de API</label><input id="sKey" autocomplete="off" value="' + esc(A.index.key || "") + '" placeholder="AIza…"></div><button class="btn small" type="button" id="sSave">Guardar</button></div>' +
+    '<div class="box"><b>Cuenta</b><span class="muted" style="font-size:13px">Usuario: ' + esc(A.user) + '</span><button class="btn small sec" type="button" id="out">Cerrar sesión</button></div>';
+  document.getElementById("back").addEventListener("click", function () { A.view = "list"; render(); });
+  document.getElementById("sSave").addEventListener("click", function () {
+    A.index.key = document.getElementById("sKey").value.trim(); saveIndex();
+    Promise.all((A.index.parties || []).map(function (p) { return publishConfig(p); })).then(function () { toast("Clave guardada en todas tus fiestas"); });
+  });
+  document.getElementById("out").addEventListener("click", function () { T.store("admin", null); location.reload(); });
+}
+
+/* ---------- start ---------- */
+var saved = T.store("admin");
+if (saved && saved.h) {
+  $app.innerHTML = '<p class="muted" style="text-align:center;margin-top:30vh">Cargando tus fiestas…</p>';
+  A.user = saved.user; connect(saved.h);
+  var t0 = Date.now();
+  (function w() {
+    if (A.index) { render(); return; }
+    if (Date.now() - t0 > 12000) { A.user = null; renderLogin("in", "No he podido cargar tu cuenta. Vuelve a entrar."); return; }
+    setTimeout(w, 200);
+  })();
+} else renderLogin("in");
+})();
+</script>
+</body>
+</html>

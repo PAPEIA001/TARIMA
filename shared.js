@@ -139,13 +139,24 @@ var T = (function () {
         var s = JSON.stringify(o);
         clients.forEach(function (c) { if (c.connected) c.publish(topic, s, { qos: 1, retain: !!retain }); });
       },
+      clear: function (topic) { clients.forEach(function (c) { if (c.connected) c.publish(topic, "", { qos: 1, retain: true }); }); },
       subscribe: function (topic) { clients.forEach(function (c) { if (c.connected) c.subscribe(topic, { qos: 1 }); }); subs.push(topic); }
     };
   }
 
   function topics(code) {
     var base = "tarima/v1/" + String(code).toUpperCase();
-    return { base: base, state: base + "/state", cmd: base + "/cmd", res: function (cid) { return base + "/res/" + cid; } };
+    return { base: base, state: base + "/state", cmd: base + "/cmd", config: base + "/config", res: function (cid) { return base + "/res/" + cid; } };
+  }
+
+  function adminTopic(h) { return "tarima/v1/admin/" + h; }
+
+  var COLORS = { rosa: "#ff3d7f", naranja: "#ff8a3d", amarillo: "#ffc93d", verde: "#3ddc97", azul: "#3db8ff", lila: "#a46bff" };
+
+  // Applies a party's accent colour to the page.
+  function applyColor(name) {
+    var c = COLORS[name] || COLORS.rosa;
+    document.documentElement.style.setProperty("--accent", c);
   }
 
   function mmss(s) {
@@ -158,5 +169,5 @@ var T = (function () {
   }
 
   return { BROKERS: BROKERS, CATALOG: CATALOG, esc: esc, rand: rand, hash: hash, ytId: ytId, playlistId: playlistId, norm: norm,
-    initials: initials, hue: hue, art: art, avatar: avatar, store: store, connect: connect, topics: topics, mmss: mmss, siteBase: siteBase };
+    initials: initials, adminTopic: adminTopic, COLORS: COLORS, applyColor: applyColor, hue: hue, art: art, avatar: avatar, store: store, connect: connect, topics: topics, mmss: mmss, siteBase: siteBase };
 })();

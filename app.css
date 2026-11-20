@@ -93,3 +93,8 @@ h1,h2,h3{font-family:var(--display);margin:0;line-height:1.1;text-wrap:balance}
 .inline{display:flex;gap:8px;align-items:center}
 .inline input{flex:1;min-width:0}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+.banner{aspect-ratio:16/9;border-radius:14px;background:var(--surface2) center/cover no-repeat;position:relative;overflow:hidden;display:flex;align-items:flex-end}
+.banner::before{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.75),transparent 65%)}
+.banner div{position:relative;padding:14px;display:grid;gap:2px}
+.banner b{font-family:var(--display);font-size:24px;line-height:1.1}
+.banner span{font-size:13px;opacity:.9}
