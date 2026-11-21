@@ -707,6 +707,6 @@ var T = (function () {
     return location.href.replace(/[?#].*$/, "").replace(/[^/]*$/, "");
   }
 
-  return { BROKERS: BROKERS, CATALOG: CATALOG, esc: esc, rand: rand, hash: hash, logo: logo, TELE: "papeia001.github.io/TARIMA/tele", ytId: ytId, playlistId: playlistId, norm: norm,
+  return { BROKERS: BROKERS, CATALOG: CATALOG, esc: esc, rand: rand, hash: hash, logo: logo, TELE: "is.gd/partiendolatarima", ytId: ytId, playlistId: playlistId, norm: norm,
     initials: initials, pw: pw, TASTES: TASTES, fit: fit, artistsOf: artistsOf, festive: festive, CHANNELS: CHANNELS, ytGet: ytGet, cleanTitle: cleanTitle, syncCatalog: syncCatalog, searchYT: searchYT, resolveChannel: resolveChannel, adminTopic: adminTopic, COLORS: COLORS, applyColor: applyColor, hue: hue, art: art, avatar: avatar, store: store, connect: connect, topics: topics, mmss: mmss, siteBase: siteBase };
 })();
