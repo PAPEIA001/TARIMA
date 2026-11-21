@@ -360,12 +360,12 @@ function catAll() {
   (c.items || []).forEach(function (r) { out.push({ key: r.vid, vid: r.vid, t: r.t, ch: r.ch, best: true, ads: !!ads[r.vid] }); });
   return out;
 }
-function inQueue(key) { return st().queue.some(function (q) { return q.singerId === S.cid && (q.songId === key || q.vid === key || q.songId === "yt:" + key); }); }
+function inQueue(key) { return st().queue.some(function (q) { return q.singerId === S.cid && (q.songId === key || q.vid === key || q.songId === "yt:" + key || q.songId === "sp:" + key); }); }
 function songRow(x) {
   var done = inQueue(x.key);
-  var thumb = x.vid ? '<div class="art" style="width:64px;height:48px"><img src="https://i.ytimg.com/vi/' + esc(x.vid) + '/mqdefault.jpg" alt="" loading="lazy"></div>' : T.art(x.t, 48);
+  var thumb = x.sp ? '<div class="art" style="width:48px;height:48px">' + (x.img ? '<img src="' + esc(x.img) + '" alt="" loading="lazy">' : "") + "</div>" : x.vid ? '<div class="art" style="width:64px;height:48px"><img src="https://i.ytimg.com/vi/' + esc(x.vid) + '/mqdefault.jpg" alt="" loading="lazy"></div>' : T.art(x.t, 48);
   var tags = (x.best && !x.ads ? '<span class="tag best">⭐</span>' : "") + (x.ads ? '<span class="tag ads">📢</span>' : "") + (x.req ? '<span class="tag">🔥</span>' : "");
-  var data = x.songId ? 'data-add="' + esc(x.songId) + '"' : 'data-vid="' + esc(x.vid) + '" data-title="' + esc(x.t) + '" data-ch="' + esc(x.ch || "") + '"';
+  var data = x.sp ? 'data-sp="' + esc(x.sp) + '" data-title="' + esc(x.t) + '" data-ch="' + esc(x.ch || "") + '" data-img="' + esc(x.img || "") + '" data-big="' + esc(x.big || "") + '" data-dur="' + (x.dur || 0) + '"' : x.songId ? 'data-add="' + esc(x.songId) + '"' : 'data-vid="' + esc(x.vid) + '" data-title="' + esc(x.t) + '" data-ch="' + esc(x.ch || "") + '"';
   return '<div class="row">' + thumb + '<div class="meta"><b>' + esc(x.t) + "</b><small>" + tags + esc(x.ch && x.ch !== "Catálogo Tarima" ? x.ch : "") + "</small></div>" +
     '<button class="icon-btn add' + (done ? " done" : "") + '" type="button" ' + data + ' aria-label="' + (done ? "Ya en tu cola" : "Añadir a la cola") + ": " + esc(x.t) + '">' + (done ? ICON.check : ICON.plus) + "</button></div>";
 }
@@ -409,8 +409,9 @@ function ytResults() {
   var s = st();
   if (!S.q.trim() || !s.canSearch) return "";
   if (S.yt && S.yt.q === S.q.trim() && S.yt.mode === s.mode)
-    return sign("▶️ YouTube") + (S.yt.items.length ? bestBtn(S.yt.items) + S.yt.items.map(function (r) { return songRow({ key: r.vid, vid: r.vid, t: r.t, ch: r.ch, best: r.best, ads: r.ads }); }).join("") : '<p class="empty">😕 Nada. Prueba otro nombre.</p>');
-  return '<button class="btn sec ytgo" type="button" id="ytGo">' + (S.ytBusy ? "⏳ Buscando…" : "▶️ Buscar «" + esc(S.q.trim()) + "» en YouTube") + "</button>";
+    return sign(s.spotify ? '<span class="spdot">●</span> Spotify' : "▶️ YouTube") + (S.yt.items.length ? (s.spotify ? "" : bestBtn(S.yt.items)) + S.yt.items.map(function (r) {
+      return r.uri ? songRow({ key: r.uri, sp: r.uri, t: r.t, ch: r.a, img: r.img, big: r.big, dur: r.dur }) : songRow({ key: r.vid, vid: r.vid, t: r.t, ch: r.ch, best: r.best, ads: r.ads }); }).join("") : '<p class="empty">😕 Nada. Prueba otro nombre.</p>');
+  return '<button class="btn sec ytgo' + (s.spotify ? " spgo" : "") + '" type="button" id="ytGo">' + (S.ytBusy ? "⏳ Buscando…" : (s.spotify ? "● Buscar «" + esc(S.q.trim()) + "» en Spotify" : "▶️ Buscar «" + esc(S.q.trim()) + "» en YouTube")) + "</button>";
 }
 function searchResults() {
   var music = isMusic(), q = T.norm(S.q);
@@ -468,6 +469,9 @@ var VIEWS = {
     var guests = (s.guests || []).slice().sort(function (a, b) { return (b.sung || 0) - (a.sung || 0); });
     return '<div class="pcode"><div><span class="sign sm">🔑 Código</span><b>' + esc(S.session.code) + '</b></div><button class="btn small" type="button" id="copyLink">🔗 Invitar</button></div>' +
       (!music ? rankingBlock(s, host) : "") +
+      (host && s.spotify ? sign('<span class="spdot">●</span> Spotify') + '<div class="spbox"><small>Suena en</small><div class="chips wrap">' +
+        (s.spotify.devices || []).map(function (d) { var ic = /tv/i.test(d.type) ? "📺" : /smartphone/i.test(d.type) ? "📱" : /computer/i.test(d.type) ? "💻" : "🔊"; return '<button class="chip" type="button" data-spdev="' + esc(d.id) + '" aria-pressed="' + (d.id === s.spotify.devId) + '">' + ic + " " + esc(d.name) + "</button>"; }).join("") +
+        '<button class="chip" type="button" data-act="sprefresh">🔄</button></div>' + (!(s.spotify.devices || []).length ? '<p class="empty">Abre Spotify en un móvil o altavoz y pulsa 🔄</p>' : "") + "</div>" : "") +
       (host ? sign("⚙️ Anfitrión") +
         '<div class="modes"><button type="button" data-mode="karaoke" aria-pressed="' + !music + '"><span class="mi">🎤</span><b>Karaoke</b></button><button type="button" data-mode="music" aria-pressed="' + music + '"><span class="mi">🎵</span><b>Música</b></button></div>' +
         '<div class="switch"><span>✋ Máximo 2 por persona</span><button class="tog" type="button" role="switch" aria-checked="' + (s.limit !== false) + '" data-set="limit" aria-label="Límite de canciones"></button></div>' +
@@ -544,6 +548,9 @@ function bindSearch() {
 function bindView(root) {
   var v = root || document.getElementById("view");
   v.querySelectorAll("[data-add]").forEach(function (b) { b.addEventListener("click", function () { addCmd({ type: "add", songId: b.dataset.add }); }); });
+  v.querySelectorAll("[data-sp]").forEach(function (b) { b.addEventListener("click", function () { addCmd({ type: "add", sp: b.dataset.sp, title: b.dataset.title, ch: b.dataset.ch, img: b.dataset.img, big: b.dataset.big, dur: +b.dataset.dur || 0 }); }); });
+  v.querySelectorAll("[data-spdev]").forEach(function (b) { b.addEventListener("click", function () { simple({ type: "spdev", id: b.dataset.spdev }, "🔊 Ahora suena en " + b.textContent.replace(/^\S+\s/, "")); }); });
+  v.querySelectorAll("[data-act=sprefresh]").forEach(function (b) { b.addEventListener("click", function () { simple({ type: "sprefresh" }); }); });
   v.querySelectorAll("[data-vid]").forEach(function (b) { b.addEventListener("click", function () { addCmd({ type: "add", vid: b.dataset.vid, title: b.dataset.title, ch: b.dataset.ch }); }); });
   v.querySelectorAll("[data-chip]").forEach(function (b) { b.addEventListener("click", function () { S.chip = b.dataset.chip; S.q = ""; S.yt = null; showTab("search"); }); });
   v.querySelectorAll("[data-gosearch]").forEach(function (b) { b.addEventListener("click", function () { showTab("search"); var qi = document.getElementById("qInput"); if (qi) qi.focus(); }); });

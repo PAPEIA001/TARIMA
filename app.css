@@ -208,3 +208,8 @@ h1,h2,h3{font-family:var(--display);margin:0;line-height:1.1;text-wrap:balance}
 .login{justify-content:flex-start;padding-top:calc(env(safe-area-inset-top) + 18px)}
 .tvshort{background:var(--surface2);border:2px solid var(--accent2);border-radius:12px;padding:12px;font-size:14px;line-height:1.5}
 .tvshort code{display:block;font-family:var(--display);font-size:20px;font-weight:800;color:var(--accent2);margin:4px 0;word-break:break-all}
+.spdot{color:#1ed760}
+.spgo{background:#1ed760;color:#06210f}
+.spbox{background:var(--surface);border:2px solid #1ed760;border-radius:14px;padding:10px 12px}
+.spbox small{color:var(--muted);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.spbox .chip[aria-pressed="true"]{background:#1ed760;color:#06210f}
