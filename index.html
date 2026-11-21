@@ -9,11 +9,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=1795267360">
+<link rel="stylesheet" href="app.css?v=1795269437">
 <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
 <script>window.mqtt || document.write('<script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
-<script src="shared.js?v=1795267360"></script>
-<script src="trivia.js?v=1795267360"></script>
+<script src="shared.js?v=1795269437"></script>
+<script src="trivia.js?v=1795269437"></script>
 </head>
 <body>
 <div class="app" id="app"></div>
@@ -110,7 +110,8 @@ function errText(r) {
     search: "La búsqueda de YouTube ha fallado. Prueba otra vez o pega un enlace.",
     noguests: "Todavía no hay invitados para elegir.",
     nopoints: "Todavía nadie tiene puntos en el juego de preguntas.",
-    late: "Se acabó el tiempo para esta pregunta."
+    late: "Se acabó el tiempo.",
+    fewguests: "Hacen falta al menos dos invitados para esa prueba."
   };
   return r.msg || map[r.err] || "Algo ha fallado. Prueba otra vez.";
 }
@@ -286,15 +287,35 @@ function paintMini() {
 
 /* ---------- trivia ---------- */
 var QL = ["A", "B", "C", "D"], quizT = null;
+function paintVote(el, ch) {
+  if (!S.vt || S.vt.id !== ch.id) S.vt = { id: ch.id, mine: null, deadline: Date.now() + (ch.left || 0) };
+  var v = S.vt, key = "v" + ch.id + ":" + v.mine;
+  el.hidden = false;
+  if (el.dataset.key === key) return;   // don't rebuild under the person's finger
+  el.dataset.key = key;
+  el.innerHTML = '<div class="qz-in"><div class="qz-h"><span>👑 El Rey de la Tarima · ' + esc(ch.title) + '</span><b id="qzLeft">' + Math.max(0, Math.ceil((v.deadline - Date.now()) / 1000)) + '</b></div><p class="qz-q" id="qzQ">¿Quién lo ha hecho mejor?</p><div class="qz-btns">' +
+    ch.names.map(function (n, i) { return '<button type="button" class="qz-b c' + (i ? 1 : 0) + (v.mine === i ? " sel" : "") + '" data-vote="' + i + '"' + (v.mine !== null ? " disabled" : "") + ">" + face(ch.ids[i], n, 64) + "<span>" + esc(n) + "</span></button>"; }).join("") + "</div>" +
+    (v.mine !== null ? '<div class="qz-msg">Voto enviado. ¡Mira la tele!</div>' : "") + '<button type="button" class="qz-x" id="qzHide">Ahora no</button></div>';
+  el.querySelectorAll("[data-vote]").forEach(function (b) { b.addEventListener("click", function () { v.mine = +b.dataset.vote; if (navigator.vibrate) navigator.vibrate(30); paintVote(el, ch); send({ type: "vote", vt: ch.id, pick: v.mine }).then(function (r) { if (!r.ok) toast(errText(r), true); }); }); });
+  document.getElementById("qzHide").addEventListener("click", function () { el.hidden = true; S.vtHide = ch.id; });
+  clearInterval(quizT);
+  quizT = setInterval(function () { var l = document.getElementById("qzLeft"); if (l) l.textContent = Math.max(0, Math.ceil((v.deadline - Date.now()) / 1000)); }, 250);
+}
 function paintQuiz() {
-  var el = document.getElementById("quiz"), q = S.session && st().quiz;
-  if (!q || isMusic()) { el.hidden = true; el.innerHTML = ""; S.qz = null; clearInterval(quizT); return; }
+  var el = document.getElementById("quiz"), ch = S.session && st().ch;
+  if (ch && ch.stage === "vote" && S.vtHide !== ch.id && !isMusic()) { paintVote(el, ch); return; }
+  if (ch && ch.ids && ch.ids.indexOf(S.cid) >= 0 && S.chToast !== ch.id) { S.chToast = ch.id; toast(ch.kind === "duo" ? "🎤 ¡Dúo sorpresa! Te toca cantar" : "💃 ¡Te toca bailar! Mira la tele"); if (navigator.vibrate) navigator.vibrate([80, 60, 80]); }
+  var q = S.session && st().quiz;
+  if (!q || isMusic()) { el.hidden = true; el.innerHTML = ""; el.dataset.key = ""; S.qz = null; clearInterval(quizT); return; }
   if (!S.qz || S.qz.id !== q.id) S.qz = { id: q.id, mine: null, deadline: Date.now() + (q.left || 0), hide: false };
   var z = S.qz;
   if (q.stage === "ask" && q.left !== undefined) z.deadline = Math.min(z.deadline, Date.now() + q.left);
   if (z.hide) { el.hidden = true; return; }
   el.hidden = false;
   var reveal = q.stage !== "ask", got = reveal && q.res && q.res[S.cid];
+  var key = "q" + q.id + ":" + q.stage + ":" + z.mine;
+  if (el.dataset.key === key) return;
+  el.dataset.key = key;
   var head = '<div class="qz-h"><span>' + esc(q.about ? "Pregunta sobre " + q.about : "Pregunta musical") + '</span><b id="qzLeft">' + (reveal ? "✓" : Math.max(0, Math.ceil((z.deadline - Date.now()) / 1000))) + "</b></div>";
   var msg = "";
   if (reveal) msg = got ? '<div class="qz-msg ok">¡Correcto! +' + got + " puntos</div>" : z.mine !== null ? '<div class="qz-msg bad">Era la ' + QL[q.c] + ": " + esc(q.o[q.c]) + "</div>" : '<div class="qz-msg">Era la ' + QL[q.c] + ": " + esc(q.o[q.c]) + "</div>";
@@ -317,7 +338,7 @@ function paintQuiz() {
 /* ---------- catalog helpers ---------- */
 function catAll() {
   var c = S.cat || {}, ads = c.ads || {}, out = [];
-  T.CATALOG.forEach(function (b) { out.push({ key: b.id, songId: b.id, t: b.a + " - " + b.t, a: "", g: b.g, ch: "Clásicos de la casa", best: true }); });
+  T.CATALOG.forEach(function (b) { out.push({ key: b.id, songId: b.id, t: b.a + " - " + b.t, a: "", g: b.g, ch: "Catálogo Tarima", best: true }); });
   (c.req || []).forEach(function (r) { out.push({ key: r.vid, vid: r.vid, t: r.t, ch: "Pedida en la fiesta", req: true, ads: !!ads[r.vid] }); });
   (c.items || []).forEach(function (r) { out.push({ key: r.vid, vid: r.vid, t: r.t, ch: r.ch, best: true, ads: !!ads[r.vid] }); });
   return out;
@@ -374,7 +395,7 @@ var VIEWS = {
       '</b><span style="font-size:13px;opacity:.9">' + q.length + " en cola · " + (s.guests || []).length + " invitados</span></div>" +
       shelf("Para ti", fy, "foryou") +
       Object.keys(chans).map(function (ch) { return shelf("Lo último de " + ch, chans[ch], "ch:" + ch); }).join("") +
-      shelf("Clásicos de la casa", all.filter(function (x) { return x.songId; }), "house") +
+      [["Española", "Pop español"], ["Latino", "Latino"], ["Rock", "Rock"], ["Pop", "Pop internacional"], ["Baladas", "Baladas"], ["Clásicos", "Clásicos de siempre"]].map(function (gx) { return shelf(gx[1], all.filter(function (x) { return x.g === gx[0]; }), "g:" + gx[0]); }).join("") +
       (!fy.length ? '<p class="note" style="margin-top:16px">Dinos qué música te gusta en la pestaña Fiesta y te preparamos una lista «Para ti».</p>' : "");
   },
   search: function () {
@@ -382,7 +403,7 @@ var VIEWS = {
     var ytBlock = "";
     if (S.q.trim() && s.canSearch) {
       ytBlock = '<div class="h-row"><h3>En todo YouTube</h3>' + (S.ytBusy ? '<span class="link">Buscando…</span>' : "") + "</div>" +
-        (S.yt && S.yt.q === S.q.trim() && S.yt.mode === s.mode ? (S.yt.items.length ? S.yt.items.map(function (r) { return songRow({ key: r.vid, vid: r.vid, t: r.t, ch: r.ch, best: r.best, ads: r.ads }); }).join("") : '<p class="muted">Sin resultados que encajen. Prueba con otro nombre.</p>') :
+        (S.yt && S.yt.q === S.q.trim() && S.yt.mode === s.mode ? (S.yt.items.length ? bestBtn(S.yt.items) + S.yt.items.map(function (r) { return songRow({ key: r.vid, vid: r.vid, t: r.t, ch: r.ch, best: r.best, ads: r.ads }); }).join("") : '<p class="muted">Sin resultados que encajen. Prueba con otro nombre.</p>') :
           '<button class="btn sec" type="button" id="ytGo">Buscar «' + esc(S.q.trim()) + '» en YouTube</button>');
     }
     var paste = '<div class="h-row"><h3>Pegar enlace de YouTube</h3></div>' +
@@ -401,15 +422,15 @@ var VIEWS = {
     var all = catAll(), list;
     var chans = []; all.forEach(function (x) { if (x.vid && !x.req && chans.indexOf(x.ch) < 0) chans.push(x.ch); });
     if (S.chip === "foryou") list = forYou(all); else if (S.chip === "house") list = all.filter(function (x) { return x.songId; });
-    else if (S.chip === "req") list = all.filter(function (x) { return x.req; }); else if (S.chip.indexOf("ch:") === 0) list = all.filter(function (x) { return x.ch === S.chip.slice(3); }); else list = all;
+    else if (S.chip === "req") list = all.filter(function (x) { return x.req; }); else if (S.chip.indexOf("g:") === 0) list = all.filter(function (x) { return x.g === S.chip.slice(2); }); else if (S.chip.indexOf("ch:") === 0) list = all.filter(function (x) { return x.ch === S.chip.slice(3); }); else list = all;
     if (q) list = (S.chip === "foryou" ? all : list).filter(function (x) { return T.norm(x.t + " " + (x.ch || "")).indexOf(q) >= 0; });
     list = list.slice().sort(function (a, b) { return (a.ads ? 1 : 0) - (b.ads ? 1 : 0); });
-    var chips = [["foryou", "Para ti"], ["all", "Todo"], ["req", "Pedidas aquí"], ["house", "Clásicos de la casa"]].concat(chans.map(function (c) { return ["ch:" + c, c]; }));
+    var chips = [["foryou", "Para ti"], ["all", "Todo"], ["req", "Pedidas aquí"], ["house", "Catálogo Tarima"], ["g:Española", "Pop español"], ["g:Latino", "Latino"], ["g:Rock", "Rock"], ["g:Pop", "Pop internacional"], ["g:Baladas", "Baladas"], ["g:Clásicos", "Clásicos"]].concat(chans.map(function (c) { return ["ch:" + c, c]; }));
     return '<h2 class="title">Buscar</h2>' + box +
       '<div class="chips">' + chips.map(function (c) { return '<button class="chip" type="button" data-chip="' + esc(c[0]) + '" aria-pressed="' + (S.chip === c[0] && !q) + '">' + esc(c[1]) + "</button>"; }).join("") + "</div>" +
       '<div class="h-row"><h3>' + (q ? "En el catálogo" : esc((chips.filter(function (c) { return c[0] === S.chip; })[0] || ["", "Catálogo"])[1])) + '</h3><span class="link">' + list.length + "</span></div>" +
       (S.chip === "foryou" && !q && !list.length ? '<p class="muted" style="margin:0">Elige tus estilos y artistas en la pestaña Fiesta para ver aquí tus canciones.</p>' : "") +
-      (list.slice(0, 60).map(songRow).join("") || (q ? '<p class="muted">No está en el catálogo.</p>' : "")) + ytBlock + paste;
+      (list.slice(0, 200).map(songRow).join("") || (q ? '<p class="muted">No está en el catálogo.</p>' : "")) + ytBlock + paste;
   },
   queue: function () {
     var s = st(), n = s.now, host = S.session.host, music = isMusic();
@@ -469,13 +490,17 @@ var VIEWS = {
 function rankingBlock(s, host) {
   var list = (s.guests || []).filter(function (g) { return g.pts > 0; }).sort(function (a, b) { return b.pts - a.pts; });
   var every = s.quizEvery === undefined ? 1 : s.quizEvery;
-  return '<div class="h-row"><h3>🏆 Juego de preguntas</h3></div>' +
+  return '<div class="h-row"><h3>👑 El Rey de la Tarima</h3></div>' +
     (list.length ? list.slice(0, 10).map(function (g, i) { return '<div class="row"><span class="pos">' + (i + 1) + "</span>" + face(g.id, g.name, 36) + '<div class="meta"><b>' + esc(g.name) + (g.id === S.cid ? " (tú)" : "") + "</b></div><b>" + g.pts + "</b></div>"; }).join("")
-      : '<p class="muted" style="margin:0 0 8px">Antes de cada canción sale una pregunta en la tele y aquí. Cuanto antes aciertes, más puntos.</p>') +
+      : '<p class="muted" style="margin:0 0 8px">Preguntas, duelos de baile, adivina la canción y dúos sorpresa. Cada prueba da puntos y al final se corona al Rey o la Reina de la Tarima.</p>') +
     (host ? '<div class="field" style="margin:8px 0 0"><label>Pregunta antes de…</label><div class="chips wrap" role="group" aria-label="Frecuencia de preguntas">' +
       [[1, "Cada canción"], [2, "Cada 2"], [3, "Cada 3"], [0, "Sin preguntas"]].map(function (o) { return '<button class="chip" type="button" data-every="' + o[0] + '" aria-pressed="' + (every === o[0]) + '">' + o[1] + "</button>"; }).join("") + "</div></div>" +
       '<div class="tools"><button class="btn small" type="button" data-game="final">👑 Ver ganador final</button><button class="btn small sec" type="button" data-game="reset">Poner puntos a cero</button></div>' +
       '<div class="switch"><span>Presentador con voz<small>' + (s.voice && s.voice.on ? "Activado" : "Desactivado") + '. La voz y el idioma se eligen en el panel de administrador</small></span><button class="tog" type="button" role="switch" aria-checked="' + !!(s.voice && s.voice.on) + '" data-game="voice" aria-label="Presentador con voz"></button></div>' : "");
+}
+function bestBtn(items) {
+  var b = items.filter(function (r) { return !r.ads; })[0] || items[0];
+  return '<button class="btn" type="button" style="margin-bottom:10px" data-vid="' + esc(b.vid) + '" data-title="' + esc(b.t) + '" data-ch="' + esc(b.ch) + '">🎤 Cantar ya la mejor versión<br><small style="font-weight:500;opacity:.9">' + esc(b.t) + " · " + esc(b.ch) + "</small></button>";
 }
 function addCmd(cmd) {
   return send(cmd).then(function (r) {

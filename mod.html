@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0b11">
+<title>Tarima · Moderador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css?v=1795269437">
+<script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
+<script>window.mqtt || document.write('<script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
+<script src="shared.js?v=1795269437"></script>
+<script src="sfx.js?v=1795269437"></script>
+<script src="trivia.js?v=1795269437"></script>
+<style>
+body{overflow:auto}
+.wrap{max-width:1180px;margin:0 auto;padding:14px 16px 60px}
+.head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.head h1{font-size:24px;margin:0}
+.head h1 span{color:var(--accent)}
+.phase{display:inline-block;padding:4px 10px;border-radius:99px;background:var(--surface2);font-size:12.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.phase.live{background:var(--accent);color:#fff}
+.cols{display:grid;grid-template-columns:1.1fr 1fr;gap:18px;align-items:start}
+@media (max-width:860px){.cols{grid-template-columns:1fr}}
+.pcard{background:var(--surface);border-radius:14px;padding:14px 16px;display:grid;gap:10px;margin-top:14px}
+.pcard h2{font-size:15px;margin:0;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.nowbox{display:flex;gap:14px;align-items:center}
+.nowbox b{font-family:var(--display);font-size:24px;display:block;line-height:1.1}
+.nowbox small{color:var(--muted);font-size:14px}
+.prog{height:4px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}
+.prog i{display:block;height:100%;background:var(--accent);width:0;transition:width 1s linear}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.fx{border:0;border-radius:12px;padding:14px 8px;font-weight:700;font-size:15px;background:var(--surface2);color:var(--text);cursor:pointer;transition:transform .1s}
+.fx:active{transform:scale(.95)}
+.fx.hot{background:linear-gradient(135deg,var(--accent),#8a2bd6);color:#fff}
+.qopts{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.qopts div{border-radius:8px;padding:8px 10px;font-weight:700;font-size:14px;color:#fff}
+.qopts .off{opacity:.3}
+.c0{background:#e5384f}.c1{background:#2f6fe0}.c2{background:#c48f00}.c3{background:#1f9e5a}
+.inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.inline input[type=text]{flex:1;min-width:180px;background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:12px;font-size:16px;color:var(--text);outline:none}
+.pts{font-family:var(--display);font-size:18px}
+.icon-btn{border:0;background:var(--surface2);color:var(--text);border-radius:8px;width:34px;height:34px;font-size:15px;cursor:pointer;flex:none}
+.login{max-width:440px;margin:8vh auto;padding:0 16px;display:grid;gap:10px}
+.err{color:var(--accent2);font-size:14px;min-height:18px;margin:0}
+.danger{background:#5a1a24!important;color:#ffd5db!important}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+(function () {
+"use strict";
+var esc = T.esc, $app = document.getElementById("app");
+var M = { cid: "mod-" + (T.store("modcid") || T.rand(8)), conn: null, tp: null, state: null, pending: {}, sess: T.store("modsess"), links: 0 };
+T.store("modcid", M.cid.slice(4));
+var params = new URLSearchParams(location.search), pcode = (params.get("p") || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+function toast(msg, bad) { var el = document.getElementById("toast"); el.textContent = msg; el.className = "toast show" + (bad ? " bad" : ""); clearTimeout(toast.t); toast.t = setTimeout(function () { el.className = "toast"; }, 2600); }
+function open(code) {
+  if (M.conn && M.code === code) return;
+  M.code = code; M.tp = T.topics(code);
+  M.conn = T.connect([M.tp.state, M.tp.res(M.cid), M.tp.config, M.tp.avAll], function (topic, m) {
+    if (!m) return;
+    if (topic === M.tp.state) { if (!M.state || (m.ts || 0) >= (M.state.ts || 0)) { M.state = m; M.at = Date.now(); if (M.sess) paint(); } }
+    else if (topic === M.tp.config) { if (m.code === M.code) T.applyColor(m.color); }
+    else if (topic === M.tp.res(M.cid) && m.rid && M.pending[m.rid]) { var p = M.pending[m.rid]; delete M.pending[m.rid]; clearTimeout(p.t); p.cb(m); }
+    else if (topic.indexOf(M.tp.base + "/av/") === 0 && m.img) { (M.av = M.av || {})[topic.split("/").pop()] = m.img; }
+  }, function (n) { M.links = n; var c = document.getElementById("conn"); if (c) c.textContent = n ? "● Conectado" : "○ Conectando…"; });
+}
+function send(cmd, ms) {
+  return new Promise(function (res) {
+    var rid = T.rand(10); cmd.rid = rid; cmd.cid = M.cid; cmd.spectator = true;
+    if (M.sess) { cmd.auth = M.sess.auth; cmd.name = "Moderador"; }
+    M.pending[rid] = { cb: res, t: setTimeout(function () { delete M.pending[rid]; res({ ok: false, err: "timeout" }); }, ms || 8000) };
+    M.conn.publish(M.tp.cmd, cmd);
+  });
+}
+var ERR = { fewguests: "Hacen falta al menos dos invitados.", timeout: "La tele no responde. ¿Está abierta y con Empezar pulsado?", auth: "Esa clave no vale para esta fiesta.", host: "Esa clave no tiene permisos de moderador.", nosinger: "Ahora no está cantando nadie.", nopoints: "Todavía nadie tiene puntos.", musicmode: "Las preguntas solo van en modo karaoke." };
+function act(cmd, ok) { return send(cmd).then(function (r) { if (!r.ok) toast(ERR[r.err] || "No ha funcionado. Prueba otra vez.", true); else if (ok) toast(ok); return r; }); }
+
+/* ---------- login ---------- */
+function login(err) {
+  $app.innerHTML = '<form class="login" id="lf"><h1 style="font-size:30px;margin:0">Tarima<span style="color:var(--accent)">.</span> moderador</h1>' +
+    '<p class="muted" style="margin:0">Controla el show en directo: aplausos, efectos, mensajes en la tele, concurso y reinicios.</p>' +
+    '<div class="field"><label for="lc">Código de la fiesta</label><input id="lc" maxlength="8" autocapitalize="characters" value="' + esc(pcode || (M.sess && M.sess.code) || "") + '"></div>' +
+    '<div class="field"><label for="lk">Clave de moderador o de anfitrión</label><input id="lk" type="password" autocomplete="current-password"></div>' +
+    '<p class="err" id="lerr">' + esc(err || "") + '</p><button class="btn" type="submit" id="lb">Entrar al control</button></form>';
+  document.getElementById("lf").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var code = document.getElementById("lc").value.trim().toUpperCase(), key = document.getElementById("lk").value;
+    if (!code || !key) { document.getElementById("lerr").textContent = "Escribe el código y la clave."; return; }
+    var b = document.getElementById("lb"); b.disabled = true; b.textContent = "Comprobando…";
+    open(code);
+    T.hash(code + ":" + T.pw(key)).then(function (auth) {
+      M.sess = { code: code, auth: auth };
+      var wait = function (n) { return M.links > 0 || n <= 0 ? Promise.resolve() : new Promise(function (r) { setTimeout(r, 250); }).then(function () { return wait(n - 1); }); };
+      return wait(40).then(function () { return send({ type: "mod", action: "ping" }); });
+    }).then(function (r) {
+      if (r.ok) { T.store("modsess", M.sess); paint(true); }
+      else { M.sess = null; b.disabled = false; b.textContent = "Entrar al control"; document.getElementById("lerr").textContent = ERR[r.err] || "No ha funcionado."; }
+    });
+  });
+}
+
+/* ---------- panel ---------- */
+var PH = { challenge: "Prueba", idle: "Tele libre", intro: "Presentación", playing: "Cantando", outro: "Aplausos", quiz: "Pregunta", rank: "Ranking" };
+var QUICK = ["¡Otra! ¡Otra! ¡Otra!", "¡Todo el mundo de pie! 🙌", "¡Silencio, que viene lo bueno!", "¡Esto es un estadio! 🔥", "¡Que suba el siguiente valiente!", "¡Barra libre de aplausos! 👏"];
+var built = false;
+function paint(force) {
+  if (!M.sess) return;
+  if (!built || force) build();
+  var s = M.state || {}, n = s.now, q = s.quiz, ph = s.ch ? "challenge" : n ? n.phase : (q ? "quiz" : "idle");
+  if (q && q.stage) ph = q.stage === "ask" || q.stage === "reveal" ? "quiz" : ph;
+  document.getElementById("pname").textContent = s.name || "Fiesta";
+  var phase = document.getElementById("phase"); phase.textContent = (s.mode === "music" ? "🎵 " : "🎤 ") + (PH[ph] || ph); phase.className = "phase" + (ph !== "idle" ? " live" : "");
+  var stale = !M.at || Date.now() - M.at > 15000;
+  document.getElementById("now").innerHTML = stale ? '<p class="muted" style="margin:0">Esperando a la tele… Comprueba que tiene la fiesta abierta.</p>' :
+    n ? '<div class="nowbox">' + face(n.singerId, n.singer) + '<div style="min-width:0"><b>' + esc(n.singer) + "</b><small>" + esc(n.t) + (n.a ? " · " + esc(n.a) : "") + "</small></div></div>" +
+      '<div class="prog"><i style="width:' + (n.dur ? Math.min(100, (n.pos || 0) / n.dur * 100) : 0) + '%"></i></div>' :
+    '<p class="muted" style="margin:0">Nadie canta ahora mismo.</p>';
+  var qb = document.getElementById("quiz");
+  if (q) {
+    qb.hidden = false;
+    qb.innerHTML = "<h2>Pregunta en pantalla" + (q.about ? " · " + esc(q.about) : "") + "</h2><b style='font-size:17px'>" + esc(q.q) + "</b>" +
+      '<div class="qopts">' + q.o.map(function (t, i) { return '<div class="c' + i + (q.c !== undefined && q.c !== i ? " off" : "") + '">' + "ABCD"[i] + " · " + esc(t) + "</div>"; }).join("") + "</div>" +
+      '<small class="muted">' + (q.stage === "ask" ? (q.n || 0) + " respuestas · quedan " + Math.ceil((q.left || 0) / 1000) + " s" : "Respuesta: " + "ABCD"[q.c]) + "</small>";
+  } else { qb.hidden = true; qb.innerHTML = ""; }
+  var queue = s.queue || [];
+  document.getElementById("queue").innerHTML = queue.length ? queue.map(function (x, i) {
+    return '<div class="row"><span class="pos">' + (i + 1) + "</span>" + face(x.singerId, x.singer, 34) + '<div class="meta"><b>' + esc(x.t) + "</b><small>" + esc(x.singer) + (x.auto ? " · 🎲" : "") + "</small></div>" +
+      (i ? '<button class="icon-btn" type="button" data-up="' + esc(x.qid) + '" aria-label="Subir">↑</button>' : "") + '<button class="icon-btn" type="button" data-del="' + esc(x.qid) + '" aria-label="Quitar">✕</button></div>';
+  }).join("") : '<p class="muted" style="margin:0">La cola está vacía.</p>';
+  var gs = (s.guests || []).slice().sort(function (a, b) { return (b.pts || 0) - (a.pts || 0) || (b.sung || 0) - (a.sung || 0); });
+  document.getElementById("guests").innerHTML = gs.length ? gs.map(function (g, i) {
+    return '<div class="row"><span class="pos">' + (i + 1) + "</span>" + face(g.id, g.name, 34) + '<div class="meta"><b>' + esc(g.name) + (g.host ? " · anfitrión" : "") + "</b><small>" + (g.sung ? "🎤 " + g.sung + " cantadas" : "Aún no ha cantado") + '</small></div><span class="pts">' + (g.pts || 0) + "</span></div>";
+  }).join("") : '<p class="muted" style="margin:0">Todavía no ha entrado nadie.</p>';
+  var ce = s.chEvery === undefined ? 3 : s.chEvery;
+  document.querySelectorAll("[data-chev]").forEach(function (b) { b.setAttribute("aria-pressed", +b.dataset.chev === ce); });
+  var ev = s.quizEvery === undefined ? 1 : s.quizEvery;
+  document.querySelectorAll("[data-every]").forEach(function (b) { b.setAttribute("aria-pressed", +b.dataset.every === ev); });
+  document.querySelectorAll("[data-mode]").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.mode === (s.mode || "karaoke")); });
+  var vt = document.getElementById("voice"); if (vt) vt.setAttribute("aria-checked", !!(s.voice && s.voice.on));
+  var at = document.getElementById("autoOn"); if (at) at.setAttribute("aria-checked", !!s.autoOn);
+  bindLive();
+}
+function face(id, name, px) { px = px || 52; var img = M.av && M.av[id]; return img ? '<img src="' + img + '" alt="" style="width:' + px + "px;height:" + px + 'px;border-radius:50%;object-fit:cover;flex:none">' : T.avatar(name || "?", px); }
+function build() {
+  built = true;
+  $app.innerHTML = '<div class="wrap"><div class="head"><div><h1>👑 <span id="pname"></span></h1><span class="muted" style="font-size:13px">Panel de moderador · ' + esc(M.sess.code) + ' · <span id="conn">' + (M.links ? "● Conectado" : "○ Conectando…") + '</span></span></div><span class="phase" id="phase"></span></div>' +
+    '<div class="cols"><div>' +
+      '<div class="pcard"><h2>En directo</h2><div id="now"></div><div class="inline"><button class="btn small" type="button" data-a="skip">⏭ Saltar canción</button><button class="btn small sec" type="button" data-a="auto">🎲 Auto karaoke</button></div></div>' +
+      '<div class="pcard" id="quiz" hidden></div>' +
+      '<div class="pcard"><h2>Cola</h2><div id="queue"></div></div>' +
+      '<div class="pcard"><h2>Concursantes · ranking</h2><div id="guests"></div></div>' +
+    "</div><div>" +
+      '<div class="pcard"><h2>Efectos en la tele</h2><div class="grid">' + Object.keys(T.sfx.NAMES).map(function (k) { return '<button class="fx' + (k === "applause" || k === "airhorn" ? " hot" : "") + '" type="button" data-sfx="' + k + '">' + T.sfx.NAMES[k] + "</button>"; }).join("") + "</div></div>" +
+      '<div class="pcard"><h2>Mensaje en la tele</h2><form class="inline" id="mf"><input type="text" id="msg" maxlength="140" placeholder="¡Que no decaiga!"><button class="btn small" type="submit">Mostrar</button></form>' +
+        '<label class="inline" style="font-size:14px;justify-content:flex-start"><input type="checkbox" id="speak" checked> Que lo diga también el presentador</label>' +
+        '<div class="chips wrap">' + QUICK.map(function (t) { return '<button class="chip" type="button" data-quick="' + esc(t) + '">' + esc(t) + "</button>"; }).join("") + "</div></div>" +
+      '<div class="pcard"><h2>👑 Pruebas de El Rey de la Tarima</h2><div class="grid">' + [["dance", "💃 Duelo de baile"], ["freeze", "🧊 Congelados"], ["guess", "🎧 Adivina la canción"], ["duo", "🎤 Dúo sorpresa"]].map(function (c) { return '<button class="fx hot" type="button" data-ch="' + c[0] + '">' + c[1] + "</button>"; }).join("") + "</div>" +
+        '<span class="muted" style="font-size:13px">Si alguien está cantando, la prueba sale antes de la siguiente canción. Prueba automática cada…</span><div class="chips wrap">' + [[2, "2 canciones"], [3, "3 canciones"], [5, "5 canciones"], [0, "Solo a mano"]].map(function (o) { return '<button class="chip" type="button" data-chev="' + o[0] + '">' + o[1] + "</button>"; }).join("") + "</div></div>" +
+      '<div class="pcard"><h2>Concurso</h2><div class="inline"><button class="btn small" type="button" data-a="quiznow">❓ Lanzar pregunta</button><button class="btn small" type="button" data-a="final">👑 Ganador final</button><button class="btn small sec" type="button" data-a="resetpts">Puntos a cero</button></div>' +
+        '<span class="muted" style="font-size:13px">Puntos del jurado para quien está cantando</span><div class="inline">' + [100, 300, 500, 1000, -200].map(function (p) { return '<button class="btn small ' + (p < 0 ? "danger" : "sec") + '" type="button" data-jury="' + p + '">' + (p > 0 ? "+" : "") + p + "</button>"; }).join("") + "</div>" +
+        '<span class="muted" style="font-size:13px">Pregunta antes de…</span><div class="chips wrap">' + [[1, "Cada canción"], [2, "Cada 2"], [3, "Cada 3"], [0, "Sin preguntas"]].map(function (o) { return '<button class="chip" type="button" data-every="' + o[0] + '">' + o[1] + "</button>"; }).join("") + "</div></div>" +
+      '<div class="pcard"><h2>Programa</h2><div class="modes"><button type="button" data-mode="karaoke"><span class="mi">🎤</span><b>Karaoke</b></button><button type="button" data-mode="music"><span class="mi">🎵</span><b>Música</b></button></div>' +
+        '<div class="switch"><span>Presentador con voz</span><button class="tog" type="button" role="switch" id="voice" aria-label="Presentador con voz"></button></div>' +
+        '<div class="switch"><span>Auto karaoke continuo</span><button class="tog" type="button" role="switch" id="autoOn" aria-label="Auto karaoke continuo"></button></div>' +
+        '<div class="inline" style="margin-top:6px"><button class="btn small sec" type="button" data-a="clearq">🧹 Vaciar la cola</button><button class="btn small danger" type="button" data-a="resetall">♻️ Reiniciar fiesta</button></div>' +
+        '<span class="muted" style="font-size:12.5px">Reiniciar vacía la cola y pone a cero canciones cantadas y puntos. Los invitados siguen dentro.</span></div>' +
+      '<button class="btn sec small" type="button" id="out" style="margin-top:14px">Salir del panel</button>' +
+    "</div></div></div>";
+  document.querySelectorAll("[data-sfx]").forEach(function (b) { b.addEventListener("click", function () { act({ type: "mod", action: "sfx", name: b.dataset.sfx }); }); });
+  var sendMsg = function (t) { if (!t.trim()) return; act({ type: "mod", action: "msg", text: t.trim(), speak: document.getElementById("speak").checked, from: "📣 Mensaje del moderador" }, "En la tele"); };
+  document.getElementById("mf").addEventListener("submit", function (e) { e.preventDefault(); var i = document.getElementById("msg"); sendMsg(i.value); i.value = ""; });
+  document.querySelectorAll("[data-quick]").forEach(function (b) { b.addEventListener("click", function () { sendMsg(b.dataset.quick); }); });
+  document.querySelectorAll("[data-ch]").forEach(function (b) { b.addEventListener("click", function () { act({ type: "mod", action: "challenge", kind: b.dataset.ch }).then(function (r) { if (r.ok) toast(r.later ? "Sale antes de la siguiente canción" : "¡Prueba en marcha!"); }); }); });
+  document.querySelectorAll("[data-chev]").forEach(function (b) { b.addEventListener("click", function () { act({ type: "game", action: "ch", every: +b.dataset.chev }, "Hecho"); }); });
+  document.querySelectorAll("[data-jury]").forEach(function (b) { b.addEventListener("click", function () { act({ type: "mod", action: "jury", pts: +b.dataset.jury }, "Puntos dados"); }); });
+  document.querySelectorAll("[data-every]").forEach(function (b) { b.addEventListener("click", function () { act({ type: "game", action: "quiz", every: +b.dataset.every }, "Hecho"); }); });
+  document.querySelectorAll("[data-mode]").forEach(function (b) { b.addEventListener("click", function () { act({ type: "settings", mode: b.dataset.mode }, b.dataset.mode === "music" ? "Modo música" : "Modo karaoke"); }); });
+  document.getElementById("voice").addEventListener("click", function () { act({ type: "game", action: "voice", on: this.getAttribute("aria-checked") !== "true" }); });
+  document.getElementById("autoOn").addEventListener("click", function () { act({ type: "settings", autoOn: this.getAttribute("aria-checked") !== "true" }); });
+  var A = {
+    skip: function () { act({ type: "skip" }, "Saltada"); },
+    auto: function () { act({ type: "autopick" }).then(function (r) { if (r.ok) toast("🎲 Le toca a " + r.who); }); },
+    quiznow: function () { act({ type: "mod", action: "quiznow" }, "Pregunta en camino"); },
+    final: function () { act({ type: "game", action: "final" }).then(function (r) { if (r.ok) toast(r.later ? "Sale al acabar esta canción" : "¡Mira la tele!"); }); },
+    resetpts: function () { if (confirm("¿Poner los puntos de todos a cero?")) act({ type: "game", action: "reset" }, "Puntos a cero"); },
+    clearq: function () { if (confirm("¿Vaciar la cola de canciones?")) act({ type: "mod", action: "clearq" }, "Cola vacía"); },
+    resetall: function () { if (confirm("¿Reiniciar la fiesta? Se vacía la cola y se ponen a cero canciones y puntos.")) act({ type: "mod", action: "resetall" }, "Fiesta reiniciada"); }
+  };
+  document.querySelectorAll("[data-a]").forEach(function (b) { b.addEventListener("click", function () { A[b.dataset.a](); }); });
+  document.getElementById("out").addEventListener("click", function () { M.sess = null; built = false; T.store("modsess", null); login(); });
+}
+function bindLive() {
+  document.querySelectorAll("#queue [data-del]").forEach(function (b) { b.onclick = function () { act({ type: "remove", qid: b.dataset.del }); }; });
+  document.querySelectorAll("#queue [data-up]").forEach(function (b) { b.onclick = function () { act({ type: "up", qid: b.dataset.up }); }; });
+}
+setInterval(function () { if (M.sess && built) paint(); }, 2000);
+
+if (M.sess && (!pcode || pcode === M.sess.code)) {
+  open(M.sess.code); paint(true);
+  setTimeout(function () { send({ type: "mod", action: "ping" }).then(function (r) { if (!r.ok && r.err === "auth") { M.sess = null; built = false; T.store("modsess", null); login("La clave ha cambiado. Vuelve a entrar."); } }); }, 1500);
+} else { if (pcode) open(pcode); login(); }
+})();
+</script>
+</body>
+</html>

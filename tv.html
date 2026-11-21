@@ -10,8 +10,9 @@
 <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
 <script>window.mqtt || document.write('<script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="shared.js?v=1795267360"></script>
-<script src="trivia.js?v=1795267360"></script>
+<script src="shared.js?v=1795269437"></script>
+<script src="sfx.js?v=1795269437"></script>
+<script src="trivia.js?v=1795269437"></script>
 <style>
 /* TV screen: full-window stage with four layers (idle, intro, playing, applause). Sizes in vw so it scales to any TV. */
 :root{
@@ -112,6 +113,18 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
 .qz-o .n{margin-left:auto;font-size:1.6vw;opacity:.9}
 .c0{background:#e5384f}.c1{background:#2f6fe0}.c2{background:#e0a400}.c3{background:#1f9e5a}
 #L-quiz.reveal .qz-o{opacity:.25}
+#L-quiz.solid{background:radial-gradient(circle at 50% 0,#3a1258,#0d0b11 70%);z-index:4}
+#chal{position:fixed;inset:0;z-index:6;display:none;pointer-events:none}
+#chal.on{display:block}
+#chal .full{position:absolute;inset:0;display:grid;place-items:center;text-align:center;background:radial-gradient(circle,#4a1670,#0d0b11 75%);padding:4vw}
+#chal .bar{position:absolute;left:2vw;right:2vw;top:2vw;display:flex;justify-content:space-between;align-items:center;gap:2vw;background:rgba(0,0,0,.65);border-radius:1.2vw;padding:1vw 2vw;font-size:2.4vw;font-weight:800}
+#chal .vs{display:flex;gap:4vw;align-items:center;justify-content:center;margin:2vw 0}
+#chal .vs img,#chal .vs .f{width:16vw;height:16vw;border-radius:50%;object-fit:cover;border:.5vw solid var(--accent2);display:grid;place-items:center;font-size:7vw;font-weight:800;background:rgba(255,255,255,.12)}
+#chal .vs b{display:block;font-size:3vw;margin-top:1vw}
+#chal h2{font-family:var(--display);font-size:6vw;margin:0;line-height:1}
+#chal p{font-size:2.2vw;color:var(--muted);margin:1vw 0 0}
+#chal .vsx{font-family:var(--display);font-size:3.6vw;font-weight:800}
+#chal .freeze{position:absolute;inset:0;display:grid;place-items:center;background:rgba(120,200,255,.35);font-family:var(--display);font-size:12vw;font-weight:800;color:#fff;text-shadow:0 0 3vw #3db8ff}
 #L-quiz.reveal .qz-o.ok{opacity:1;transform:scale(1.04);box-shadow:0 0 0 .4vw #fff}
 .qz-foot{font-size:1.8vw;color:var(--muted);text-align:center;min-height:2.4vw}
 #L-rank{display:grid;place-items:center;text-align:center;padding:3vw}
@@ -127,6 +140,10 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
 .orank{margin-top:2vw;font-size:1.8vw;color:var(--muted)}
 .orank b{color:var(--text)}
 
+#shout{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.6);z-index:25;max-width:86vw;text-align:center;font-family:var(--display);font-weight:800;font-size:6vw;line-height:1.05;letter-spacing:-.02em;padding:2.5vw 4vw;border-radius:2vw;background:linear-gradient(135deg,var(--accent),#8a2bd6);box-shadow:0 2vw 8vw rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:transform .4s cubic-bezier(.2,1.6,.4,1),opacity .3s}
+#shout.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#shout small{display:block;font-family:var(--body,inherit);font-size:1.6vw;letter-spacing:.2em;text-transform:uppercase;opacity:.85;margin-bottom:1vw}
+#hype{font-size:2.2vw;font-weight:700;color:var(--accent2);margin-top:1.2vw;min-height:2.6vw}
 /* notices, buttons, setup */
 #notice{position:fixed;top:2vw;left:50%;transform:translate(-50%,-150%);background:var(--accent2);color:#2a1600;font-weight:700;font-size:1.5vw;padding:1vw 2vw;border-radius:99px;z-index:20;transition:transform .35s,opacity .35s;opacity:0;max-width:80vw;text-align:center}
 #notice.show{transform:translate(-50%,0);opacity:1}
@@ -174,7 +191,7 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
     </div>
   </section>
   <section class="layer" id="L-intro">
-    <div><img id="iPhoto" alt="" style="display:none;width:9vw;height:9vw;border-radius:50%;object-fit:cover;margin:0 auto 1.6vw;border:.3vw solid var(--accent);box-shadow:0 0 3vw var(--accent)"><div class="eyebrow" id="iEyebrow">Sube a la tarima</div><div id="iName"></div><div id="iSong"></div><div id="iCount"></div></div>
+    <div><img id="iPhoto" alt="" style="display:none;width:9vw;height:9vw;border-radius:50%;object-fit:cover;margin:0 auto 1.6vw;border:.3vw solid var(--accent);box-shadow:0 0 3vw var(--accent)"><div class="eyebrow" id="iEyebrow">Sube a la tarima</div><div id="iName"></div><div id="iSong"></div><div id="hype"></div><div id="iCount"></div></div>
   </section>
   <section class="layer" id="L-play">
     <div class="video"><div id="ytmain"></div></div>
@@ -194,6 +211,8 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
   <section class="layer" id="L-outro"><div><img id="oAv" alt="" style="display:none;width:16vw;height:16vw;border-radius:50%;object-fit:cover;margin:0 auto 2vw;border:.5vw solid var(--accent)"><h2 id="oTitle"></h2><p id="oNext"></p><div class="orank" id="oRank"></div></div></section>
 </div>
 <div id="notice" role="status"></div>
+<div id="shout" role="status"></div>
+<div id="chal" aria-live="polite"></div>
 <button id="playFix" class="big" type="button">¿No se mueve el vídeo? Pulsa OK</button>
 <button id="gear" type="button">Ajustes</button>
 
@@ -255,6 +274,8 @@ if (cfg.musicLimit === undefined) cfg.musicLimit = true;
 if (cfg.quiz === undefined) cfg.quiz = 1;   // trivia before every Nth karaoke song; 0 = off
 if (!cfg.voice) cfg.voice = { on: true, gender: "f", lang: "es-ES", where: "tv" };
 if (!cfg.phrases) cfg.phrases = [];
+if (cfg.sfx === undefined) cfg.sfx = true;
+if (cfg.chEvery === undefined) cfg.chEvery = 3;   // a challenge (dance duel, freeze, guess the song, surprise duet) every N songs; 0 = off
 function Q() { return cfg.mode === "music" ? P.mqueue : P.queue; }
 if (P.now) { (P.now.kind === "music" ? P.mqueue : P.queue).unshift(P.now); P.now = null; }   // a song cut off by a reload starts again
 var now = null, phase = "idle", bgOn = true, bgTitle = "", H = {}, conn = null, tp = T.topics(cfg.code), gotConfig = false;
@@ -319,9 +340,11 @@ function applyConfig(m) {
   if (typeof m.quiz === "number") cfg.quiz = m.quiz;
   if (m.voice) cfg.voice = m.voice;
   if (m.phrases) cfg.phrases = m.phrases;
+  if (typeof m.chEvery === "number") cfg.chEvery = m.chEvery;
+  if (typeof m.sfx === "boolean") { cfg.sfx = m.sfx; T.sfx.set(cfg.sfx); }
   if (m.mode && m.mode !== cfg.mode) { if (started) setMode(m.mode); else cfg.mode = m.mode; }
   if (started) maybeSync();
-  H.pw = m.pwHash; H.host = m.hostHash;
+  H.pw = m.pwHash; H.host = m.hostHash; H.mod = m.modHash || null;
   T.applyColor(cfg.color); paintJoin();
   if (!started) showStart();
   if (started && bgP && bgP.__ready && cfg.bg !== oldBg) { if (cfg.bg) bgLoad(cfg.bg); else { try { bgP.stopVideo(); } catch (e) {} bgTitle = ""; } }
@@ -332,6 +355,7 @@ function go() {
   if (ADMIN && !gotConfig) { notice("Aún no he recibido los datos de la fiesta. Espera unos segundos.", 4000); return; }
   try { var r = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); if (r && r.catch) r.catch(function () {}); } catch (e) {}
   $("setup").classList.remove("on"); $("start").classList.remove("on");
+  T.sfx.unlock(); T.sfx.set(cfg.sfx);
   if (started) return;
   started = true;
   paintJoin(); publish();
@@ -427,7 +451,7 @@ function layer(id) {
   ["L-idle", "L-intro", "L-play", "L-outro", "L-quiz", "L-rank"].forEach(function (l) { $(l).classList.toggle("on", l === id); });
 }
 function toIdle() {
-  clearTimers(); now = null; phase = "idle"; QZ = null;
+  clearTimers(); now = null; phase = "idle"; QZ = null; endChallenge(true); idleSince = Date.now();
   try { mainP.stopVideo(); } catch (e) {}
   layer("L-idle"); hidePlayFix();
   $("bgTitle").textContent = cfg.bg ? (bgTitle || "Música de fondo") : "Sin música de fondo";
@@ -444,8 +468,11 @@ function startNext() {
   now = n; now.idx = 0; now.claps = 0;
   P.history = (P.history || []).concat([now.songId]).slice(-300);
   if (cfg.mode === "music") { phase = "playing"; applyBg(); playNow(); saveParty(); return; }
-  P.qn = (P.qn || 0) + 1;
-  if (cfg.quiz > 0 && P.guests.length && P.qn >= cfg.quiz) { P.qn = 0; runQuiz(intro); return; }
+  P.qn = (P.qn || 0) + 1; P.cn = (P.cn || 0) + 1;
+  var skipQ = P.noQuiz; P.noQuiz = false;
+  var forced = P.nextCh; P.nextCh = null;
+  if (!skipQ && P.guests.length >= 2 && (forced || (cfg.chEvery > 0 && P.cn >= cfg.chEvery))) { P.cn = 0; runChallenge(forced || pickChallenge(), intro); return; }
+  if (!skipQ && cfg.quiz > 0 && P.guests.length && P.qn >= cfg.quiz) { P.qn = 0; runQuiz(intro); return; }
   intro();
 }
 function intro() {
@@ -457,11 +484,15 @@ function intro() {
   var avi = AV[now.singerId] || cfg.photo;
   $("iPhoto").style.display = avi ? "block" : "none"; if (avi) $("iPhoto").src = avi;
   $("iPhoto").classList.toggle("big", !!AV[now.singerId]);
-  $("iEyebrow").textContent = now.auto ? "🎲 ¡Te ha tocado!" : "Sube a la tarima";
+  $("iEyebrow").textContent = now.duo ? "🎤 Dúo sorpresa" : now.auto ? "🎲 ¡Te ha tocado!" : "Sube a la tarima";
   $("iSong").innerHTML = esc(now.t) + (now.a ? " <span>· " + esc(now.a) + "</span>" : "");
   layer("L-intro"); L.className = "layer on st-" + cfg.intro;
   // restart the name animation each time
   var nm = $("iName"); nm.style.animation = "none"; void nm.offsetWidth; nm.style.animation = "";
+  T.sfx.jingle();
+  $("hype").textContent = "";
+  later(function () { $("hype").textContent = T.line("es-ES", "hype", { n: now.singer }); }, 2500);
+  later(function () { T.sfx.drumroll(1.6); }, 5200);
   var c = 7; $("iCount").textContent = c;
   for (var i = 1; i <= 6; i++) (function (k) { later(function () { $("iCount").textContent = c - k; }, k * 1000); })(i);
   later(playNow, 7000);
@@ -501,15 +532,16 @@ function paintPlay() {
 function outro() {
   if (cfg.mode === "music") { startNext(); return; }
   clearTimers(); phase = "outro";
-  var sg = P.guests.filter(function (x) { return x.id === now.singerId; })[0]; if (sg) sg.sung = (sg.sung || 0) + 1;
+  P.guests.filter(function (x) { return x.id === now.singerId || (now.duo && now.duo.indexOf(x.id) >= 0); }).forEach(function (sg) { sg.sung = (sg.sung || 0) + 1; });
   $("oTitle").textContent = verdict(now);
   var oav = AV[now.singerId]; $("oAv").style.display = oav ? "block" : "none"; if (oav) $("oAv").src = oav;
   var nx = Q()[0];
   $("oNext").textContent = nx ? "Ahora: " + nx.singer + " con «" + nx.t + "»" : "La tarima queda libre. ¿Quién se anima?";
   var top = ranking().slice(0, 3);
-  $("oRank").innerHTML = top.length ? "🏆 Ranking de preguntas: " + top.map(function (g, i) { return "<b>" + (i + 1) + ". " + esc(g.name) + "</b> " + g.pts; }).join(" · ") : "";
+  $("oRank").innerHTML = top.length ? "👑 El Rey de la Tarima: " + top.map(function (g, i) { return "<b>" + (i + 1) + ". " + esc(g.name) + "</b> " + g.pts; }).join(" · ") : "";
   layer("L-outro"); publish();
-  var lang = cfg.voice.lang, line = T.speaksSpanish(lang) ? $("oTitle").textContent.replace(/[🔥🌟👏💪]/g, "") : T.line(lang, verdictKey(now), { n: now.singer });
+  var vk = verdictKey(now); T.sfx.applause(vk === "good" ? 5 : 3.5, vk !== "brave"); if (vk === "good") T.sfx.airhorn();
+  var lang = cfg.voice.lang, line = T.line(lang, vk, { n: now.singer });
   if (T.speaksSpanish(lang) && Math.random() < 0.5 && top.length) line += " " + T.line(lang, "lead", { n: top[0].name, k: top[0].pts });
   var custom = customPhrase(); if (custom && Math.random() < 0.35) line += " " + custom;
   say(line);
@@ -536,7 +568,7 @@ function publish() {
   conn.publish(tp.state, {
     ts: Date.now(), name: cfg.name, code: cfg.code, now: n, queue: Q().map(pick), mode: cfg.mode, autoOn: !!cfg.autoOn, catAt: CAT.at || 0,
     guests: P.guests.map(function (g) { return { id: g.id, name: g.name, host: g.host, sung: g.sung || 0, pts: g.pts || 0 }; }),
-    quiz: QZ ? quizPublic() : null, quizEvery: cfg.quiz, voice: { on: cfg.voice.on, where: cfg.voice.where, lang: cfg.voice.lang, gender: cfg.voice.gender },
+    quiz: QZ ? quizPublic() : null, ch: CH ? chPublic() : null, chEvery: cfg.chEvery, quizEvery: cfg.quiz, voice: { on: cfg.voice.on, where: cfg.voice.where, lang: cfg.voice.lang, gender: cfg.voice.gender },
     canSearch: !!cfg.key, limit: cfg.mode === "music" ? cfg.musicLimit : cfg.limit, ads: now ? !!adSet[now.ids[now.idx || 0]] : false, intro: cfg.intro, bg: { set: !!cfg.bg, on: bgOn, title: bgTitle }
   }, true);
 }
@@ -545,13 +577,14 @@ setInterval(publish, 5000);
 function reply(cmd, obj) { obj.rid = cmd.rid; conn.publish(tp.res(cmd.cid), obj); }
 function onCmd(topic, cmd) {
   if (!cmd || !cmd.type || !cmd.cid || !cmd.rid) return;
-  var role = cmd.auth === H.host ? "host" : cmd.auth === H.pw ? "guest" : null;
+  var role = cmd.auth === H.host || (H.mod && cmd.auth === H.mod) ? "host" : cmd.auth === H.pw ? "guest" : null;
   if (!role) { reply(cmd, { ok: false, err: "auth" }); return; }
   var host = role === "host";
   var name = String(cmd.name || "Invitado").slice(0, 16);
   var g = P.guests.filter(function (x) { return x.id === cmd.cid; })[0];
-  if (!g) { g = { id: cmd.cid, name: name, host: host, sung: 0 }; P.guests.push(g); } else { g.name = name; g.host = host; }
-  if (cmd.type === "join") { g.tastes = (cmd.tastes || []).slice(0, 10); g.artists = String(cmd.artists || "").slice(0, 200); }
+  if (cmd.spectator && host) g = null;   // the moderator panel watches and controls, it does not play
+  else if (!g) { g = { id: cmd.cid, name: name, host: host, sung: 0 }; P.guests.push(g); } else { g.name = name; g.host = host; }
+  if (cmd.type === "join" && g) { g.tastes = (cmd.tastes || []).slice(0, 10); g.artists = String(cmd.artists || "").slice(0, 200); }
   var changed = true;
   switch (cmd.type) {
     case "join":
@@ -595,7 +628,8 @@ function onCmd(topic, cmd) {
       if (!now) { reply(cmd, { ok: true }); break; }
       if (!host && now.singerId !== cmd.cid) { reply(cmd, { ok: false, err: "host" }); return; }
       reply(cmd, { ok: true });
-      if (phase === "quiz" || phase === "rank") { endQuizNow(); intro(); }
+      if (phase === "challenge") { endChallenge(); if (now) intro(); else toIdle(); }
+      else if (phase === "quiz" || phase === "rank") { endQuizNow(); if (now) intro(); else toIdle(); }
       else if (phase === "playing") outro(); else startNext();
       break;
     case "search":
@@ -608,7 +642,7 @@ function onCmd(topic, cmd) {
       reply(cmd, { ok: true }); break;
     case "clap":
       changed = false;
-      if (now && phase === "playing" && cmd.cid !== now.singerId) { now.claps = (now.claps || 0) + 1; clapFx(); $("pClaps").textContent = "👏 " + now.claps; }
+      if (now && phase === "playing" && cmd.cid !== now.singerId) { now.claps = (now.claps || 0) + 1; clapFx(); T.sfx.clap(); $("pClaps").textContent = "👏 " + now.claps; }
       reply(cmd, { ok: true }); break;
     case "autopick": {
       if (!host) { reply(cmd, { ok: false, err: "host" }); return; }
@@ -633,12 +667,37 @@ function onCmd(topic, cmd) {
       if (ok) { QZ.ans[cmd.cid] = { i: cmd.i, t: Date.now() }; paintQuizCount(); if (Object.keys(QZ.ans).length >= P.guests.length) later(revealQuiz, 600); }
       reply(cmd, { ok: !!ok, err: ok ? undefined : "late" }); break;
     }
+    case "mod": {
+      if (!host) { reply(cmd, { ok: false, err: "host" }); return; }
+      var act = cmd.action;
+      if (act === "sfx" && T.sfx[cmd.name] && T.sfx.NAMES[cmd.name]) { if (cmd.name === "applause") T.sfx.applause(4, true); else T.sfx[cmd.name](); if (cmd.name === "applause") { for (var ci = 0; ci < 8; ci++) setTimeout(clapFx, ci * 120); } }
+      else if (act === "msg") { var txt = String(cmd.text || "").slice(0, 140); if (txt) { shout(txt, cmd.from); if (cmd.speak) say(txt); } }
+      else if (act === "quiznow") { if (cfg.mode !== "karaoke") { reply(cmd, { ok: false, err: "musicmode" }); return; } if (phase === "idle") { now = null; runQuiz(function () { P.noQuiz = true; if (Q().length) startNext(); else toIdle(); }); } else P.qn = 99; }
+      else if (act === "jury") { var target = now && P.guests.filter(function (x) { return x.id === now.singerId; })[0]; if (!target) { reply(cmd, { ok: false, err: "nosinger" }); return; } var jp = Math.max(-1000, Math.min(1000, +cmd.pts || 0)); target.pts = (target.pts || 0) + jp; shout((jp >= 0 ? "+" : "") + jp + " del jurado para " + target.name, "⭐ Jurado"); if (jp > 0) T.sfx.fanfare(); else T.sfx.trombone(); }
+      else if (act === "challenge") {
+        if (cfg.mode !== "karaoke") { reply(cmd, { ok: false, err: "musicmode" }); return; }
+        if (P.guests.length < (cmd.kind === "guess" || cmd.kind === "freeze" ? 1 : 2)) { reply(cmd, { ok: false, err: "fewguests" }); return; }
+        var kind = CHALLENGES[cmd.kind] ? cmd.kind : pickChallenge();
+        if (phase === "idle") { now = null; runChallenge(kind, function () { P.noQuiz = true; if (Q().length) startNext(); else toIdle(); }); }
+        else { P.nextCh = kind; reply(cmd, { ok: true, later: true }); break; }
+      }
+      else if (act === "clearq") { Q().length = 0; paintPlay(); notice("La cola se ha vaciado", 4000); }
+      else if (act === "resetall") { P.queue = []; P.mqueue = []; P.history = []; P.asked = []; P.qn = 0; P.guests.forEach(function (x) { x.pts = 0; x.sung = 0; }); clearTimers(); now = null; QZ = null; T.sfx.stopLoop(); toIdle(); shout("¡Empezamos de cero!", "Nueva ronda"); }
+      reply(cmd, { ok: true }); break;
+    }
+    case "vote": {
+      changed = false;
+      var okv = CH && CH.stage === "vote" && cmd.vt === CH.id && !CH.votes[cmd.cid] && (cmd.pick === 0 || cmd.pick === 1);
+      if (okv) { CH.votes[cmd.cid] = cmd.pick; paintVotes(); }
+      reply(cmd, { ok: !!okv, err: okv ? undefined : "late" }); break;
+    }
     case "game":
       if (!host) { reply(cmd, { ok: false, err: "host" }); return; }
       if (cmd.action === "reset") { P.guests.forEach(function (x) { x.pts = 0; }); notice("Puntos a cero. ¡Empieza el juego!", 4000); }
       else if (cmd.action === "final") { if (!ranking().length) { reply(cmd, { ok: false, err: "nopoints" }); return; } if (phase === "idle") showFinal(); else P.finalPending = true; }
       else if (cmd.action === "quiz" && typeof cmd.every === "number") cfg.quiz = Math.max(0, Math.min(5, cmd.every));
       else if (cmd.action === "voice") cfg.voice.on = !!cmd.on;
+      else if (cmd.action === "ch" && typeof cmd.every === "number") cfg.chEvery = Math.max(0, Math.min(8, cmd.every));
       saveCfg(); reply(cmd, { ok: true, later: !!P.finalPending }); break;
     case "settings":
       if (!host) { reply(cmd, { ok: false, err: "host" }); return; }
@@ -780,21 +839,25 @@ function quizPublic() {
   if (QZ.stage !== "ask") { o.c = QZ.c; o.res = QZ.res; }
   return o;
 }
-function runQuiz(done) {
-  var song = now;
-  var q = T.quizFor(song, P.asked || []);
-  P.asked = (P.asked || []).concat([q.key]).slice(-200);
-  QZ = { id: T.rand(6), q: q.q, o: q.o, c: q.c, about: q.about, ans: {}, res: {}, stage: "ask", ends: Date.now() + QSECS * 1000, done: done };
+function runQuiz(done, preset) {
+  var song = now || { t: "", a: (pickOne(P.history || [""]) || ""), singer: "" };
+  if (!now) { var hs = (P.history || []).map(function (h) { var c = T.CATALOG.filter(function (x) { return x.id === h; })[0]; return c ? c.a : ""; }).filter(Boolean); song.a = hs.length ? pickOne(hs) : ""; }
+  var q = preset || T.quizFor(song, P.asked || []);
+  if (!preset) P.asked = (P.asked || []).concat([q.key]).slice(-200);
+  QZ = { id: T.rand(6), q: q.q, o: q.o, c: q.c, about: q.about, vid: q.vid, ans: {}, res: {}, stage: "ask", ends: Date.now() + QSECS * 1000, done: done };
   phase = "quiz"; applyBg();
   var L = $("L-quiz"); L.classList.remove("reveal");
-  $("qzEyebrow").textContent = q.about ? "Pregunta sobre " + q.about : "Pregunta musical";
-  $("qzSub").textContent = "Antes de que cante " + song.singer + " · responde en tu móvil";
+  $("qzEyebrow").textContent = "👑 El Rey de la Tarima · " + (q.title || (q.about ? "Pregunta sobre " + q.about : "Pregunta musical"));
+  L.classList.toggle("solid", !!q.vid);
+  $("qzSub").textContent = (song.singer ? "Antes de que cante " + song.singer + " · " : "") + "responde en tu móvil";
   $("qzQ").textContent = q.q;
   $("qzGrid").innerHTML = q.o.map(function (t, i) { return '<div class="qz-o c' + i + '" id="qo' + i + '"><b>' + QCOL[i] + "</b><span>" + esc(t) + '</span><span class="n" id="qn' + i + '"></span></div>'; }).join("");
-  paintQuizCount(); layer("L-quiz");
+  paintQuizCount();
+  if (q.vid) { layer("L-quiz"); $("L-play").classList.add("on"); applyBg(); try { bgP.pauseVideo(); } catch (e) {} try { mainP.loadVideoById({ videoId: q.vid, startSeconds: 25 }); } catch (e) {} }
+  else { layer("L-quiz"); T.sfx.whoosh(); if (!(cfg.bg && bgOn)) T.sfx.startLoop(); }
   var lang = cfg.voice.lang;
-  say(T.line(lang, "quiz") + (T.speaksSpanish(lang) ? " " + q.q : ""));
-  for (var k = 1; k <= QSECS; k++) (function (k) { later(function () { $("qzTime").textContent = QSECS - k; }, k * 1000); })(k);
+  say(q.vid ? T.line(lang, "guess") : T.line(lang, "quiz") + (T.speaksSpanish(lang) ? " " + q.q : ""));
+  for (var k = 1; k <= QSECS; k++) (function (k) { later(function () { $("qzTime").textContent = QSECS - k; if (QSECS - k <= 5 && QSECS - k > 0) T.sfx.tick(QSECS - k <= 2); }, k * 1000); })(k);
   $("qzTime").textContent = QSECS;
   later(revealQuiz, QSECS * 1000 + 300);
   saveParty(); publish();
@@ -814,8 +877,10 @@ function revealQuiz() {
   });
   right.sort(function (a, b) { return a.t - b.t; });
   $("L-quiz").classList.add("reveal"); $("qo" + QZ.c).classList.add("ok");
+  if (QZ.vid) { try { mainP.stopVideo(); } catch (e) {} }
   counts.forEach(function (n, i) { $("qn" + i).textContent = n ? n + " 👤" : ""; });
   $("qzTime").textContent = "✓";
+  if (right.length) T.sfx.ding(); else T.sfx.trombone();
   $("qzFoot").textContent = right.length ? "Han acertado: " + right.map(function (r) { return r.g.name; }).join(", ") : "Nadie ha acertado esta vez";
   var lang = cfg.voice.lang;
   say(T.line(lang, "reveal", { x: QZ.o[QZ.c] }) + " " + (right.length ? T.line(lang, "right", { n: right[0].g.name }) : T.line(lang, "nobody")));
@@ -832,27 +897,134 @@ function showRank() {
   var list = ranking();
   if (!list.length) { finishQuiz(); return; }
   phase = "rank";
-  $("winAv").style.display = "none"; $("rkTitle").textContent = "🏆 Ranking"; $("rkSub").textContent = now ? "Ahora sube a la tarima " + now.singer : "";
+  $("winAv").style.display = "none"; $("rkTitle").textContent = "👑 El Rey de la Tarima · ranking"; $("rkSub").textContent = now ? "Ahora sube a la tarima " + now.singer : "";
   $("rkList").innerHTML = rankHtml(list);
   layer("L-rank"); publish();
   if (Math.random() < 0.6) say(T.line(cfg.voice.lang, "lead", { n: list[0].name, k: list[0].pts }));
   later(finishQuiz, 5000);
 }
-function finishQuiz() { var d = QZ && QZ.done; QZ = null; if (d) d(); else toIdle(); }
-function endQuizNow() { clearTimers(); QZ = null; }
+function finishQuiz() { T.sfx.stopLoop(); try { if (phase !== "playing") mainP.stopVideo(); } catch (e) {} var d = QZ && QZ.done; QZ = null; if (d) d(); else toIdle(); }
+function endQuizNow() { clearTimers(); QZ = null; T.sfx.stopLoop(); }
 function showFinal() {
   var list = ranking(); if (!list.length) { startNext(); return; }
   clearTimers(); phase = "rank"; QZ = null;
   var w = list[0];
   $("winAv").style.display = AV[w.id] ? "block" : "none"; if (AV[w.id]) $("winAv").src = AV[w.id];
-  $("rkTitle").textContent = "👑 ¡" + w.name + " gana la noche!";
-  $("rkList").innerHTML = rankHtml(list); $("rkSub").textContent = "Ranking final del juego de preguntas";
+  $("rkTitle").textContent = "👑 ¡" + w.name + ", Rey de la Tarima!";
+  $("rkList").innerHTML = rankHtml(list); $("rkSub").textContent = "Ranking final de El Rey de la Tarima";
   layer("L-rank"); burst(); publish();
+  T.sfx.drumroll(2.2); setTimeout(function () { T.sfx.fanfare(); T.sfx.applause(6, true); }, 2300);
   say(T.line(cfg.voice.lang, "winner", { n: w.name }));
   later(function () { if (Q().length) startNext(); else toIdle(); }, 15000);
 }
 var winFx = false;
 function burst() { winFx = true; setTimeout(function () { winFx = false; }, 15000); }
+
+var shoutT;
+function shout(text, from) {
+  var el = $("shout"); el.innerHTML = (from ? "<small>" + esc(from) + "</small>" : "") + esc(text);
+  el.classList.add("show"); clearTimeout(shoutT); shoutT = setTimeout(function () { el.classList.remove("show"); }, 7000);
+}
+
+/* ---------- El Rey de la Tarima: challenges ---------- */
+var CH = null, idleSince = Date.now();
+var DANCE = ["Macarena", "Aserejé", "Bomba", "Danza Kuduro", "Uptown Funk", "Y.M.C.A.", "Waka Waka", "Gasolina", "Despacito", "Stayin' Alive", "Dancing Queen", "Fiesta", "Rasputin", "Suavemente", "La bicicleta", "Vivir mi vida", "Conga", "La vida es un carnaval", "Livin' la vida loca", "Mi gente", "Happy", "Don't Start Now", "Levitating", "Bailando", "Hips Don't Lie", "Pa Madrid", "Borriquito", "Me colé en una fiesta", "Sex Bomb", "Celebration"];
+var DUOS = ["Corazón partío", "La bicicleta", "Despacito", "Shallow", "Aserejé", "La tortura", "Mamma Mia", "Bailar pegados", "Hasta que me olvides", "Tusa", "Felices los 4", "Échame la culpa", "Me colé en una fiesta", "Sin documentos", "Devuélveme a mi chica", "Waka Waka"];
+var CHALLENGES = { dance: "Duelo de baile", freeze: "Congelados", guess: "Adivina la canción", duo: "Dúo sorpresa" };
+function catSong(titles) {
+  var pool = T.CATALOG.filter(function (c) { return titles.indexOf(c.t) >= 0; });
+  return pool.length ? pickOne(pool) : pickOne(T.CATALOG);
+}
+function pickChallenge() { var k = ["dance", "dance", "guess", "freeze", "duo"]; return pickOne(P.guests.length >= 2 ? k : ["guess", "freeze"]); }
+function twoGuests() {
+  var load = function (g) { return (g.pts || 0) / 500 + (g.sung || 0) + Math.random() * 1.5; };
+  return P.guests.slice().sort(function (a, b) { return load(a) - load(b); }).slice(0, 2);
+}
+function faceHtml(g) { return AV[g.id] ? '<img src="' + AV[g.id] + '" alt="">' : '<span class="f">' + esc(g.name.charAt(0).toUpperCase()) + "</span>"; }
+function chPublic() { var o = { id: CH.id, kind: CH.kind, title: CHALLENGES[CH.kind], stage: CH.stage, names: (CH.pair || []).map(function (g) { return g.name; }), ids: (CH.pair || []).map(function (g) { return g.id; }) }; if (CH.stage === "vote") { o.left = Math.max(0, CH.ends - Date.now()); o.n = Object.keys(CH.votes).length; } if (CH.win) o.win = CH.win; return o; }
+function chal(html) { var c = $("chal"); c.innerHTML = html; c.classList.toggle("on", !!html); }
+function endChallenge(quiet) { if (!CH) return; CH = null; chal(""); T.sfx.stopLoop(); if (!quiet) clearTimers(); }
+function runChallenge(kind, done) {
+  clearTimers(); hidePlayFix();
+  try { mainP.stopVideo(); } catch (e) {}
+  var lang = cfg.voice.lang;
+  if (kind === "guess") {
+    var song = pickOne(T.CATALOG), others = T.CATALOG.filter(function (c) { return c.t !== song.t; });
+    var opts = [song.t + " · " + song.a]; while (opts.length < 4) { var o = pickOne(others); var lbl = o.t + " · " + o.a; if (opts.indexOf(lbl) < 0) opts.push(lbl); }
+    var order = [0, 1, 2, 3].sort(function () { return Math.random() - 0.5; });
+    say(T.line(lang, "showman"));
+    later(function () { runQuiz(done, { key: "guess:" + song.id, q: "🎧 ¿Qué canción es?", o: order.map(function (i) { return opts[i]; }), c: order.indexOf(0), about: "", title: "Adivina la canción", vid: song.ids[0] }); }, 2500);
+    return;
+  }
+  if (kind === "duo") {
+    var pair = twoGuests(), ds = catSong(DUOS);
+    var entry = { qid: T.rand(8), singer: pair[0].name + " & " + pair[1].name, singerId: pair[0].id, duo: [pair[0].id, pair[1].id], kind: "karaoke", t: ds.t, a: ds.a, songId: ds.id, ids: ds.ids.slice() };
+    if (now) Q().unshift(now);
+    now = entry; now.idx = 0; now.claps = 0;
+    phase = "challenge"; CH = { id: T.rand(6), kind: "duo", pair: pair, stage: "intro" }; layer("L-idle");
+    chal('<div class="full"><div><div class="eyebrow">👑 El Rey de la Tarima · prueba</div><h2>🎤 ¡Dúo sorpresa!</h2><div class="vs"><div>' + faceHtml(pair[0]) + "<b>" + esc(pair[0].name) + '</b></div><div class="vsx">+</div><div>' + faceHtml(pair[1]) + "<b>" + esc(pair[1].name) + "</b></div></div><p>Os toca cantar juntos «" + esc(ds.t) + "». ¡Sin escapatoria!</p></div></div>");
+    T.sfx.drumroll(1.5); later(function () { T.sfx.fanfare(); }, 1600);
+    say(T.line(lang, "duo", { n: pair[0].name, m: pair[1].name, s: ds.t }));
+    publish();
+    later(function () { endChallenge(true); intro(); }, 7000);
+    return;
+  }
+  var pair2 = kind === "dance" ? twoGuests() : null, track = catSong(DANCE);
+  CH = { id: T.rand(6), kind: kind, pair: pair2, stage: "intro", votes: {}, track: track };
+  phase = "challenge"; layer("L-idle"); applyBg(); try { bgP.pauseVideo(); } catch (e) {}
+  var DUR = kind === "dance" ? 45 : 50;
+  var head = '<div class="full"><div><div class="eyebrow">👑 El Rey de la Tarima · prueba</div>';
+  if (kind === "dance") chal(head + '<h2>💃 ¡Duelo de baile! 🕺</h2><div class="vs"><div>' + faceHtml(pair2[0]) + "<b>" + esc(pair2[0].name) + '</b></div><div class="vsx">VS</div><div>' + faceHtml(pair2[1]) + "<b>" + esc(pair2[1].name) + "</b></div></div><p>" + DUR + " segundos bailando. Luego votáis desde el móvil. ¡El ganador se lleva 500 puntos!</p></div></div>");
+  else chal(head + "<h2>🧊 ¡Congelados!</h2><p class="vsx" style="color:var(--text)">Todo el mundo a bailar.</p><p>Cuando pare la música, ¡quietos como estatuas! Quien se mueva, fuera.</p></div></div>");
+  T.sfx.drumroll(2);
+  say(T.line(lang, "showman") + " " + (kind === "dance" ? T.line(lang, "dance", { n: pair2[0].name, m: pair2[1].name }) : T.line(lang, "freeze")));
+  publish();
+  later(function () {
+    CH.stage = "play"; layer("L-play"); $("L-play").classList.add("music");
+    $("pLabel").textContent = kind === "dance" ? "Duelo de baile" : "Congelados"; $("pName").textContent = kind === "dance" ? pair2[0].name + " vs " + pair2[1].name : "¡A bailar todos!"; $("pSong").textContent = track.t + " · " + track.a; $("pAv").style.display = "none"; $("pClaps").textContent = "";
+    $("pNext").innerHTML = "<small>Prueba</small><div class='it'><span>" + (kind === "dance" ? "Al acabar, votad en el móvil quién lo ha hecho mejor." : "Si para la música, ¡nadie se mueve!") + "</span></div>";
+    try { mainP.loadVideoById({ videoId: track.ids[0], startSeconds: 20 }); } catch (e) {}
+    chal('<div class="bar"><span>' + (kind === "dance" ? "💃 " + esc(pair2[0].name) + " vs " + esc(pair2[1].name) + " 🕺" : "🧊 Congelados") + '</span><span id="chT">' + DUR + "</span></div>");
+    var t0 = Date.now();
+    for (var k = 1; k <= DUR; k++) (function (k) { later(function () { var el = $("chT"); if (el) el.textContent = DUR - k; }, k * 1000); })(k);
+    if (kind === "freeze") [12, 25, 38].forEach(function (sec) {
+      var at = (sec + Math.random() * 4) * 1000;
+      later(function () { try { mainP.pauseVideo(); } catch (e) {} T.sfx.buzz(); var c = $("chal"); var f = document.createElement("div"); f.className = "freeze"; f.textContent = "¡CONGELADOS! 🧊"; c.appendChild(f); }, at);
+      later(function () { var f = document.querySelector("#chal .freeze"); if (f) f.remove(); try { mainP.playVideo(); } catch (e) {} }, at + 4000);
+    });
+    later(function () {
+      try { mainP.stopVideo(); } catch (e) {}
+      $("L-play").classList.remove("music");
+      if (kind === "freeze") { T.sfx.applause(4, true); chal(head + "<h2>🧊 ¡Fin de los congelados!</h2><p>El moderador puede dar puntos del jurado al último que quede en pie.</p></div></div>"); say(T.line(lang, "freezeEnd")); layer("L-idle"); publish(); later(function () { endChallenge(true); done(); }, 6000); return; }
+      startVote(head, done);
+    }, DUR * 1000);
+    publish();
+  }, 7000);
+}
+function startVote(head, done) {
+  var pr = CH.pair; CH.stage = "vote"; CH.ends = Date.now() + 15000; layer("L-idle");
+  chal(head + '<h2>🗳️ ¡A votar!</h2><div class="vs"><div>' + faceHtml(pr[0]) + "<b>" + esc(pr[0].name) + '</b><p id="v0">0 votos</p></div><div class="vsx">VS</div><div>' + faceHtml(pr[1]) + "<b>" + esc(pr[1].name) + '</b><p id="v1">0 votos</p></div></div><p>Vota en tu móvil · <span id="chT">15</span> s</p></div></div>');
+  for (var k = 1; k <= 15; k++) (function (k) { later(function () { var el = $("chT"); if (el) el.textContent = 15 - k; if (15 - k <= 3 && 15 - k > 0) T.sfx.tick(true); }, k * 1000); })(k);
+  say(T.line(cfg.voice.lang, "vote"));
+  publish();
+  later(function () {
+    var c = [0, 0]; Object.keys(CH.votes).forEach(function (id) { c[CH.votes[id]]++; });
+    var wi = c[0] === c[1] ? -1 : c[0] > c[1] ? 0 : 1;
+    CH.stage = "result";
+    if (wi < 0) { pr.forEach(function (g) { g.pts = (g.pts || 0) + 250; }); CH.win = "empate"; chal(head + "<h2>🤝 ¡Empate!</h2><p>" + c[0] + " a " + c[1] + ". 250 puntos para cada uno.</p></div></div>"); say(T.line(cfg.voice.lang, "tie")); }
+    else { var w = pr[wi]; w.pts = (w.pts || 0) + 500; CH.win = w.name; chal(head + '<div class="vs"><div>' + faceHtml(w) + "</div></div><h2>🏆 ¡Gana " + esc(w.name) + "!</h2><p>" + Math.max(c[0], c[1]) + " votos contra " + Math.min(c[0], c[1]) + ". +500 puntos para el Rey de la Tarima.</p></div></div>"); T.sfx.fanfare(); say(T.line(cfg.voice.lang, "danceWin", { n: w.name })); }
+    T.sfx.applause(4, true); publish(); saveParty();
+    later(function () { endChallenge(true); done(); }, 6000);
+  }, 15300);
+}
+function paintVotes() { if (!CH) return; var c = [0, 0]; Object.keys(CH.votes).forEach(function (id) { c[CH.votes[id]]++; }); [0, 1].forEach(function (i) { var el = $("v" + i); if (el) el.textContent = c[i] + (c[i] === 1 ? " voto" : " votos"); }); }
+// When the TV has been idle for a while, the presenter livens things up with a challenge.
+setInterval(function () {
+  if (!started || phase !== "idle" || cfg.mode !== "karaoke" || cfg.chEvery <= 0 || Q().length || P.guests.length < 2) return;
+  if (Date.now() - idleSince < 150000) return;
+  idleSince = Date.now(); now = null;
+  runChallenge(pickOne(["dance", "freeze", "guess"]), function () { P.noQuiz = true; if (Q().length) startNext(); else toIdle(); });
+}, 10000);
 
 /* ---------- voice presenter ---------- */
 var sayQ = [], speaking = false;

@@ -18,6 +18,19 @@ Crea tu cuenta de administrador (usuario y contraseña) y desde ahí:
 
 Puedes entrar al panel desde cualquier dispositivo con tu usuario y contraseña. Si olvidas la contraseña no se puede recuperar.
 
+## Novedades v4: El Rey de la Tarima
+
+- **El Rey de la Tarima.** El juego de la noche suma puntos con preguntas, pruebas y el jurado. Al final se corona al Rey o la Reina de la Tarima.
+- **Pruebas** (cada 2, 3 o 5 canciones, o solo a mano):
+  - **Duelo de baile:** dos personas al azar bailan 45 segundos una canción elegida por la app. Luego todos votan en el móvil y el ganador se lleva 500 puntos (250 cada uno si hay empate).
+  - **Congelados:** todos bailan; cuando para la música, nadie se mueve.
+  - **Adivina la canción:** suena un trozo y se responde con A, B, C o D.
+  - **Dúo sorpresa:** dos personas al azar cantan juntas una canción.
+  - Si la tele lleva un rato parada, el presentador lanza una prueba por su cuenta.
+- **Presentador de reality.** Más gamberro, coloquial y animador, con sintonía de entrada, redoble, aplausos, bocina, trombón triste y música de sala de espera hechos con el navegador (sin archivos ni coste).
+- **Panel de moderador** (`mod.html?p=CÓDIGO`): ve la fiesta en directo y lanza efectos, mensajes en la tele (que el presentador puede leer), pruebas, preguntas, puntos del jurado, vaciar la cola o reiniciar la fiesta. Se entra con la clave de moderador (opcional, en Editar fiesta) o con la de anfitrión.
+- **Catálogo:** 342 karaokes de unos 200 artistas en español, latinos e internacionales, con estantes por estilo. Con la clave de YouTube, al buscar un artista salen sus karaokes de todo YouTube y el botón «Cantar ya la mejor versión».
+
 ## Novedades v3
 
 - **Juego de preguntas tipo concurso.** En modo karaoke, antes de cada canción (o cada 2 o 3, o nunca, se elige en el panel) sale en la tele una pregunta sobre el artista que va a sonar. Todos responden en el móvil con botones grandes A, B, C y D, con 20 segundos. Si aciertas pronto ganas más puntos (de 500 a 1000). Después se ve el ranking, y en el móvil del anfitrión (pestaña Fiesta) está el botón «Ver ganador final» y «Poner puntos a cero». Hay preguntas de unos 70 artistas y de cultura musical general; si el artista no está, sale una general.
