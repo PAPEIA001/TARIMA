@@ -8,14 +8,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=1795275490">
-<link rel="stylesheet" href="brand.css?v=1795275490">
-<script src="compat.js?v=1795275490"></script>
-<script src="vendor/mqtt.min.js?v=1795275490"></script>
+<link rel="stylesheet" href="app.css?v=1795284827">
+<link rel="stylesheet" href="brand.css?v=1795284827">
+<script src="compat.js?v=1795284827"></script>
+<script src="vendor/mqtt.min.js?v=1795284827"></script>
 <script>window.mqtt || document.write('<script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
-<script src="shared.js?v=1795275490"></script>
-<script src="sfx.js?v=1795275490"></script>
-<script src="trivia.js?v=1795275490"></script>
+<script src="shared.js?v=1795284827"></script>
+<script src="sfx.js?v=1795284827"></script>
+<script src="trivia.js?v=1795284827"></script>
 <style>
 body{overflow:auto}
 .wrap{max-width:1180px;margin:0 auto;padding:14px 16px 60px}
@@ -48,6 +48,23 @@ body{overflow:auto}
 .login{max-width:440px;margin:8vh auto;padding:0 16px;display:grid;gap:10px}
 .err{color:var(--accent2);font-size:14px;min-height:18px;margin:0}
 .danger{background:#5a1a24!important;color:#ffd5db!important}
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;gap:6px;overflow-x:auto;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:rgba(13,11,17,.94);border-top:1px solid var(--line);-webkit-overflow-scrolling:touch}
+.dock button{flex:none;border:0;border-radius:12px;padding:10px 12px;font-weight:800;font-size:14px;background:var(--surface2);color:var(--text);cursor:pointer;white-space:nowrap}
+.dock button:active{transform:scale(.93)}
+.dock .lab{flex:none;align-self:center;font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;padding-right:4px}
+.wrap{padding-bottom:110px}
+.myl{display:grid;gap:6px}
+.myl .it{display:flex;gap:8px;align-items:center;background:var(--surface2);border-radius:10px;padding:8px 10px}
+.myl .it div{flex:1;min-width:0}
+.myl .it b{display:block;font-size:14.5px}
+.myl .it small{color:var(--muted);font-size:12.5px}
+.frm{display:grid;gap:6px}
+.frm input,.frm select,.frm textarea{background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:15px;color:var(--text);outline:none;font-family:inherit;width:100%;box-sizing:border-box}
+.frm .two{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.frm .ok{border-color:#1f9e5a}
+.tabs2{display:flex;gap:6px}
+.tabs2 button{flex:1;border:0;border-radius:10px;padding:10px;font-weight:800;background:var(--surface2);color:var(--muted);cursor:pointer}
+.tabs2 button[aria-pressed=true]{background:linear-gradient(135deg,var(--accent),#8a2bd6);color:#fff}
 </style>
 </head>
 <body>
@@ -81,7 +98,7 @@ function send(cmd, ms) {
     M.conn.publish(M.tp.cmd, cmd);
   });
 }
-var ERR = { fewguests: "Hacen falta al menos dos invitados.", timeout: "La tele no responde. ¿Está abierta y con Empezar pulsado?", auth: "Esa clave no vale para esta fiesta.", host: "Esa clave no tiene permisos de moderador.", nosinger: "Ahora no está cantando nadie.", nopoints: "Todavía nadie tiene puntos.", musicmode: "Las preguntas solo van en modo karaoke." };
+var ERR = { bad: "Falta rellenar algo.", fewguests: "No hay suficientes invitados para esta prueba.", timeout: "La tele no responde. ¿Está abierta y con Empezar pulsado?", auth: "Esa clave no vale para esta fiesta.", host: "Esa clave no tiene permisos de moderador.", nosinger: "Ahora no está cantando nadie.", nopoints: "Todavía nadie tiene puntos.", musicmode: "Las preguntas solo van en modo karaoke." };
 function act(cmd, ok) { return send(cmd).then(function (r) { if (!r.ok) toast(ERR[r.err] || "No ha funcionado. Prueba otra vez.", true); else if (ok) toast(ok); return r; }); }
 
 /* ---------- login ---------- */
@@ -111,7 +128,9 @@ function login(err) {
 /* ---------- panel ---------- */
 var PH = { challenge: "Prueba", idle: "Tele libre", intro: "Presentación", playing: "Cantando", outro: "Aplausos", quiz: "Pregunta", rank: "Ranking" };
 var QUICK = ["¡Otra! ¡Otra! ¡Otra!", "¡Todo el mundo de pie! 🙌", "¡Silencio, que viene lo bueno!", "¡Esto es un estadio! 🔥", "¡Que suba el siguiente valiente!", "¡Barra libre de aplausos! 👏"];
-var built = false;
+var built = false, MY = { qs: [], chs: [] }, myTab = "q";
+var DOCK = ["applause", "airhorn", "drumroll", "sting", "crash", "tada", "cash", "wrong", "trombone", "ooh", "boing", "suspense"];
+var VIBEN = { "": "Sin música", fiesta: "🎉 Fiesta", latino: "🌴 Latino", rock: "🎸 Rock", diva: "💋 Divas", pasarela: "💅 Pasarela", robot: "🤖 Electrónica", epica: "🎬 Épica", verbena: "🪗 Verbena", lounge: "🍸 Lounge" };
 function paint(force) {
   if (!M.sess) return;
   if (!built || force) build();
@@ -154,36 +173,42 @@ function build() {
   built = true;
   $app.innerHTML = '<div class="wrap"><div class="head"><div><h1>🌟 <span id="pname"></span></h1><span class="muted" style="font-size:13px">Panel de moderador · ' + esc(M.sess.code) + ' · <span id="conn">' + (M.links ? "● Conectado" : "○ Conectando…") + '</span></span></div><span class="phase" id="phase"></span></div>' +
     '<div class="cols"><div>' +
-      '<div class="pcard"><h2>En directo</h2><div id="now"></div><div class="inline"><button class="btn small" type="button" data-a="skip">⏭ Saltar canción</button><button class="btn small sec" type="button" data-a="auto">🎲 Auto karaoke</button></div></div>' +
+      '<div class="pcard"><h2>En directo</h2><div id="now"></div><div class="inline"><button class="btn small" type="button" data-a="skip">⏭ Saltar canción</button><button class="btn small sec" type="button" data-a="auto">🎲 Sorteo</button></div></div>' +
       '<div class="pcard" id="quiz" hidden></div>' +
       '<div class="pcard"><h2>Cola</h2><div id="queue"></div></div>' +
       '<div class="pcard"><h2>Concursantes · ranking</h2><div id="guests"></div></div>' +
     "</div><div>" +
-      '<div class="pcard"><h2>Efectos en la tele</h2><div class="grid">' + Object.keys(T.sfx.NAMES).map(function (k) { return '<button class="fx' + (k === "applause" || k === "airhorn" ? " hot" : "") + '" type="button" data-sfx="' + k + '">' + T.sfx.NAMES[k] + "</button>"; }).join("") + "</div></div>" +
+      '<div class="pcard"><h2>🎛️ Efectos en directo</h2><div class="grid">' + Object.keys(T.sfx.NAMES).map(function (k) { return '<button class="fx' + (k === "applause" || k === "airhorn" ? " hot" : "") + '" type="button" data-sfx="' + k + '">' + T.sfx.NAMES[k] + "</button>"; }).join("") + "</div></div>" +
       '<div class="pcard"><h2>Mensaje en la tele</h2><form class="inline" id="mf"><input type="text" id="msg" maxlength="140" placeholder="¡Que no decaiga!"><button class="btn small" type="submit">Mostrar</button></form>' +
         '<label class="inline" style="font-size:14px;justify-content:flex-start"><input type="checkbox" id="speak" checked> Que lo diga también el presentador</label>' +
         '<div class="chips wrap">' + QUICK.map(function (t) { return '<button class="chip" type="button" data-quick="' + esc(t) + '">' + esc(t) + "</button>"; }).join("") + "</div></div>" +
-      '<div class="pcard"><h2>🔥 Pruebas de Partiendo la Tarima</h2><div class="grid">' + [["dance", "💃 Duelo de baile"], ["freeze", "🧊 Congelados"], ["guess", "🎧 Adivina la canción"], ["duo", "🎤 Dúo sorpresa"]].map(function (c) { return '<button class="fx hot" type="button" data-ch="' + c[0] + '">' + c[1] + "</button>"; }).join("") + "</div>" +
+      '<div class="pcard" id="mycard"><h2>🎂 Preguntas y pruebas de la casa</h2><div class="tabs2"><button type="button" data-my="q">❓ Preguntas</button><button type="button" data-my="c">🔥 Pruebas</button></div><div id="mybody"></div></div>' +
+      '<div class="pcard"><h2>🔥 Pruebas del Reality show</h2><div class="grid">' + [["dance", "💃 Duelo de baile"], ["freeze", "🧊 Congelados"], ["guess", "🎧 Adivina la canción"], ["duo", "🎤 Dúo sorpresa"]].concat(Object.keys(T.PRUEBAS).map(function (k) { return [k, T.PRUEBAS[k].e + " " + T.PRUEBAS[k].t]; })).map(function (c, i) { return '<button class="fx' + (i < 4 ? " hot" : "") + '" type="button" data-ch="' + c[0] + '">' + c[1] + "</button>"; }).join("") + '<button class="fx hot" type="button" data-ch="">🎰 Sorpresa</button></div>' +
+        '<span class="muted" style="font-size:13px">Las de baile suenan con la canción original, sin karaoke.</span>' +
         '<span class="muted" style="font-size:13px">Si alguien está cantando, la prueba sale antes de la siguiente canción. Prueba automática cada…</span><div class="chips wrap">' + [[2, "2 canciones"], [3, "3 canciones"], [5, "5 canciones"], [0, "Solo a mano"]].map(function (o) { return '<button class="chip" type="button" data-chev="' + o[0] + '">' + o[1] + "</button>"; }).join("") + "</div></div>" +
       '<div class="pcard"><h2>Concurso</h2><div class="inline"><button class="btn small" type="button" data-a="quiznow">❓ Lanzar pregunta</button><button class="btn small" type="button" data-a="final">🌟 Ganador final</button><button class="btn small sec" type="button" data-a="resetpts">Puntos a cero</button></div>' +
         '<span class="muted" style="font-size:13px">Puntos del jurado para quien está cantando</span><div class="inline">' + [100, 300, 500, 1000, -200].map(function (p) { return '<button class="btn small ' + (p < 0 ? "danger" : "sec") + '" type="button" data-jury="' + p + '">' + (p > 0 ? "+" : "") + p + "</button>"; }).join("") + "</div>" +
         '<span class="muted" style="font-size:13px">Pregunta antes de…</span><div class="chips wrap">' + [[1, "Cada canción"], [2, "Cada 2"], [3, "Cada 3"], [0, "Sin preguntas"]].map(function (o) { return '<button class="chip" type="button" data-every="' + o[0] + '">' + o[1] + "</button>"; }).join("") + "</div></div>" +
-      '<div class="pcard"><h2>Programa</h2><div class="modes"><button type="button" data-mode="karaoke"><span class="mi">🎤</span><b>Karaoke</b></button><button type="button" data-mode="music"><span class="mi">🎵</span><b>Música</b></button></div>' +
+      '<div class="pcard"><h2>Programa</h2><div class="modes"><button type="button" data-mode="karaoke"><span class="mi">🎤</span><b>Reality show</b></button><button type="button" data-mode="music"><span class="mi">🎵</span><b>Música</b></button></div>' +
         '<div class="switch"><span>Presentador con voz</span><button class="tog" type="button" role="switch" id="voice" aria-label="Presentador con voz"></button></div>' +
-        '<div class="switch"><span>Auto karaoke continuo</span><button class="tog" type="button" role="switch" id="autoOn" aria-label="Auto karaoke continuo"></button></div>' +
+        '<div class="switch"><span>Sorteo continuo</span><button class="tog" type="button" role="switch" id="autoOn" aria-label="Sorteo continuo"></button></div>' +
         '<div class="inline" style="margin-top:6px"><button class="btn small sec" type="button" data-a="clearq">🧹 Vaciar la cola</button><button class="btn small danger" type="button" data-a="resetall">♻️ Reiniciar fiesta</button></div>' +
         '<span class="muted" style="font-size:12.5px">Reiniciar vacía la cola y pone a cero canciones cantadas y puntos. Los invitados siguen dentro.</span></div>' +
       '<button class="btn sec small" type="button" id="out" style="margin-top:14px">Salir del panel</button>' +
-    "</div></div></div>";
-  document.querySelectorAll("[data-sfx]").forEach(function (b) { b.addEventListener("click", function () { act({ type: "mod", action: "sfx", name: b.dataset.sfx }); }); });
+    "</div></div></div>" +
+    '<div class="dock" role="toolbar" aria-label="Efectos en directo"><span class="lab">🎛️ FX</span>' + DOCK.filter(function (k) { return T.sfx.NAMES[k]; }).map(function (k) { return '<button type="button" data-sfx="' + k + '">' + T.sfx.NAMES[k] + "</button>"; }).join("") + "</div>";
+  paintMy(); loadMy();
+  document.querySelectorAll("[data-my]").forEach(function (b) { b.addEventListener("click", function () { myTab = b.dataset.my; paintMy(); }); });
+  document.querySelectorAll("[data-sfx]").forEach(function (b) { b.addEventListener("click", function () { act({ type: "mod", action: "sfx", fx: b.dataset.sfx }); }); });
   var sendMsg = function (t) { if (!t.trim()) return; act({ type: "mod", action: "msg", text: t.trim(), speak: document.getElementById("speak").checked, from: "📣 Mensaje del moderador" }, "En la tele"); };
   document.getElementById("mf").addEventListener("submit", function (e) { e.preventDefault(); var i = document.getElementById("msg"); sendMsg(i.value); i.value = ""; });
   document.querySelectorAll("[data-quick]").forEach(function (b) { b.addEventListener("click", function () { sendMsg(b.dataset.quick); }); });
   document.querySelectorAll("[data-ch]").forEach(function (b) { b.addEventListener("click", function () { act({ type: "mod", action: "challenge", kind: b.dataset.ch }).then(function (r) { if (r.ok) toast(r.later ? "Sale antes de la siguiente canción" : "¡Prueba en marcha!"); }); }); });
+  document.querySelectorAll("[data-sfx]").forEach(function (b) { b.addEventListener("click", function () { if (navigator.vibrate) navigator.vibrate(15); }); });
   document.querySelectorAll("[data-chev]").forEach(function (b) { b.addEventListener("click", function () { act({ type: "game", action: "ch", every: +b.dataset.chev }, "Hecho"); }); });
   document.querySelectorAll("[data-jury]").forEach(function (b) { b.addEventListener("click", function () { act({ type: "mod", action: "jury", pts: +b.dataset.jury }, "Puntos dados"); }); });
   document.querySelectorAll("[data-every]").forEach(function (b) { b.addEventListener("click", function () { act({ type: "game", action: "quiz", every: +b.dataset.every }, "Hecho"); }); });
-  document.querySelectorAll("[data-mode]").forEach(function (b) { b.addEventListener("click", function () { act({ type: "settings", mode: b.dataset.mode }, b.dataset.mode === "music" ? "Modo música" : "Modo karaoke"); }); });
+  document.querySelectorAll("[data-mode]").forEach(function (b) { b.addEventListener("click", function () { act({ type: "settings", mode: b.dataset.mode }, b.dataset.mode === "music" ? "Modo música" : "Modo Reality show"); }); });
   document.getElementById("voice").addEventListener("click", function () { act({ type: "game", action: "voice", on: this.getAttribute("aria-checked") !== "true" }); });
   document.getElementById("autoOn").addEventListener("click", function () { act({ type: "settings", autoOn: this.getAttribute("aria-checked") !== "true" }); });
   var A = {
@@ -197,6 +222,31 @@ function build() {
   };
   document.querySelectorAll("[data-a]").forEach(function (b) { b.addEventListener("click", function () { A[b.dataset.a](); }); });
   document.getElementById("out").addEventListener("click", function () { M.sess = null; built = false; T.store("modsess", null); login(); });
+}
+function loadMy() { send({ type: "mod", action: "custom" }).then(function (r) { if (r && r.ok) { MY = r; paintMy(); } }); }
+function whoTxt(w) { return +w === 0 ? "🙌 Todos" : +w === 1 ? "👤 1 persona" : "👥 Pareja"; }
+function paintMy() {
+  var el = document.getElementById("mybody"); if (!el) return;
+  document.querySelectorAll("[data-my]").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.my === myTab); });
+  var del = function (kind, x) { return x.src === "mod" ? '<button class="icon-btn" type="button" data-del' + kind + '="' + esc(x.id) + '" aria-label="Borrar">✕</button>' : '<small title="Se edita en el panel de administrador">admin</small>'; };
+  if (myTab === "q") {
+    el.innerHTML = '<span class="muted" style="font-size:13px">Preguntas sobre quien celebra la fiesta. Salen mezcladas con las del concurso, o lánzalas tú con ▶.</span>' +
+      '<div class="myl">' + ((MY.qs || []).length ? MY.qs.map(function (x) { return '<div class="it"><div><b>' + esc(x.q) + "</b><small>✓ " + esc(x.o[0]) + " · " + esc(x.o.slice(1).join(" · ")) + '</small></div><button class="icon-btn" type="button" data-goq="' + esc(x.id) + '" aria-label="Lanzar">▶</button>' + del("q", x) + "</div>"; }).join("") : '<p class="muted" style="margin:0">Aún no hay preguntas de la casa.</p>') + "</div>" +
+      '<form class="frm" id="fq"><input id="fqQ" maxlength="160" placeholder="¿Qué pidió por su 10.º cumpleaños?" required><input id="fqA" class="ok" maxlength="80" placeholder="✓ Respuesta correcta" required><div class="two"><input id="fqB" maxlength="80" placeholder="✗ Falsa 1" required><input id="fqC" maxlength="80" placeholder="✗ Falsa 2"></div><input id="fqD" maxlength="80" placeholder="✗ Falsa 3"><button class="btn small" type="submit">➕ Añadir pregunta</button></form>';
+  } else {
+    el.innerHTML = '<span class="muted" style="font-size:13px">Inventa pruebas para esta fiesta. Salen más a menudo que las normales, o lánzalas tú con ▶.</span>' +
+      '<div class="myl">' + ((MY.chs || []).length ? MY.chs.map(function (x) { return '<div class="it"><div><b>⭐ ' + esc(x.t) + "</b><small>" + whoTxt(x.who) + " · " + (VIBEN[x.vibe || ""] || "Sin música") + " · " + (x.dur || 40) + " s" + (x.d ? " · " + esc(x.d) : "") + '</small></div><button class="icon-btn" type="button" data-goc="' + esc(x.id) + '" aria-label="Lanzar">▶</button>' + del("c", x) + "</div>"; }).join("") : '<p class="muted" style="margin:0">Aún no hay pruebas de la casa.</p>') + "</div>" +
+      '<form class="frm" id="fc"><input id="fcT" maxlength="60" placeholder="Título · p. ej. Baila como el cumpleañero" required><textarea id="fcD" rows="2" maxlength="200" placeholder="Qué hay que hacer. {n} y {m} ponen los nombres de quien le toque."></textarea>' +
+      '<div class="two"><select id="fcW"><option value="2">👥 Pareja (se vota)</option><option value="1">👤 1 persona</option><option value="0">🙌 Todo el mundo</option></select><select id="fcV">' + Object.keys(VIBEN).map(function (k) { return '<option value="' + k + '"' + (k === "fiesta" ? " selected" : "") + ">" + VIBEN[k] + "</option>"; }).join("") + "</select></div>" +
+      '<select id="fcS"><option value="30">30 segundos</option><option value="45" selected>45 segundos</option><option value="60">1 minuto</option><option value="90">1 min 30 s</option></select><button class="btn small" type="submit">➕ Añadir prueba</button></form>';
+  }
+  var g = function (id) { var e = document.getElementById(id); return e ? e.value.trim() : ""; };
+  var fq = document.getElementById("fq"); if (fq) fq.addEventListener("submit", function (e) { e.preventDefault(); act({ type: "mod", action: "addq", q: g("fqQ"), o: [g("fqA"), g("fqB"), g("fqC"), g("fqD")].filter(Boolean) }, "Pregunta añadida").then(function (r) { if (r.ok) loadMy(); }); });
+  var fc = document.getElementById("fc"); if (fc) fc.addEventListener("submit", function (e) { e.preventDefault(); act({ type: "mod", action: "addch", t: g("fcT"), d: g("fcD"), who: +g("fcW"), vibe: g("fcV"), dur: +g("fcS") }, "Prueba añadida").then(function (r) { if (r.ok) loadMy(); }); });
+  el.querySelectorAll("[data-delq]").forEach(function (b) { b.onclick = function () { act({ type: "mod", action: "delq", id: b.dataset.delq }).then(loadMy); }; });
+  el.querySelectorAll("[data-delc]").forEach(function (b) { b.onclick = function () { act({ type: "mod", action: "delch", id: b.dataset.delc }).then(loadMy); }; });
+  el.querySelectorAll("[data-goq]").forEach(function (b) { b.onclick = function () { act({ type: "mod", action: "quiznow", qid: b.dataset.goq }).then(function (r) { if (r.ok) toast(r.later ? "Sale antes de la siguiente canción" : "¡Pregunta en pantalla!"); }); }; });
+  el.querySelectorAll("[data-goc]").forEach(function (b) { b.onclick = function () { act({ type: "mod", action: "challenge", kind: "c:" + b.dataset.goc }).then(function (r) { if (r.ok) toast(r.later ? "Sale antes de la siguiente canción" : "¡Prueba en marcha!"); }); }; });
 }
 function bindLive() {
   document.querySelectorAll("#queue [data-del]").forEach(function (b) { b.onclick = function () { act({ type: "remove", qid: b.dataset.del }); }; });

@@ -74,6 +74,37 @@
       s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + 0.7); },
     fanfare: function () { var c = ready(); if (!c) return; var t = c.currentTime + 0.05;
       [[67, 0, 0.15], [67, 0.16, 0.15], [67, 0.32, 0.15], [72, 0.5, 0.9]].forEach(function (p) { tone("sawtooth", N(p[0]), t + p[1], p[2], 0.14); tone("sawtooth", N(p[0] - 12), t + p[1], p[2], 0.08); tone("square", N(p[0] + 4), t + p[1], p[2], 0.04); }); },
+    // dramatic "chan chan chaaan" sting
+    sting: function () { var c = ready(); if (!c) return; var t = c.currentTime + 0.03;
+      [[0, 0.22, 0], [0.3, 0.22, -1], [0.6, 1.6, -3]].forEach(function (p) { [43, 50, 55, 58].forEach(function (m) { tone("sawtooth", N(m + p[2]), t + p[0], p[1], 0.07); }); noise(t + p[0], 0.25, 0.4, "lowpass", 160, 1); });
+      noise(t + 0.6, 1.8, 0.3, "highpass", 5000, 0.4); },
+    // cymbal crash with a kick
+    crash: function () { var c = ready(); if (!c) return; var t = c.currentTime + 0.02; noise(t, 2.2, 0.5, "highpass", 4500, 0.4); noise(t, 0.6, 0.25, "bandpass", 8000, 0.6); noise(t, 0.25, 0.7, "lowpass", 140, 1); },
+    // prize: cash register + sparkle
+    cash: function () { var c = ready(); if (!c) return; var t = c.currentTime + 0.02;
+      noise(t, 0.05, 0.4, "bandpass", 3000, 3); noise(t + 0.08, 0.05, 0.4, "bandpass", 2500, 3);
+      tone("sine", N(96), t + 0.18, 0.9, 0.22); tone("sine", N(100), t + 0.18, 0.9, 0.12);
+      [84, 88, 91, 96, 100, 103].forEach(function (m, i) { tone("triangle", N(m), t + 0.35 + i * 0.06, 0.4, 0.06); }); },
+    // wrong answer buzzer
+    wrong: function () { var c = ready(); if (!c) return; var t = c.currentTime + 0.02; tone("square", 147, t, 0.32, 0.13); tone("square", 139, t, 0.32, 0.1); tone("square", 110, t + 0.38, 0.75, 0.14); tone("square", 104, t + 0.38, 0.75, 0.1); },
+    // "ta-dá!"
+    tada: function () { var c = ready(); if (!c) return; var t = c.currentTime + 0.03;
+      [67, 71, 74].forEach(function (m) { tone("sawtooth", N(m), t, 0.14, 0.09); });
+      [72, 76, 79, 84].forEach(function (m) { tone("sawtooth", N(m), t + 0.18, 1.1, 0.09); tone("square", N(m + 12), t + 0.18, 0.8, 0.025); });
+      noise(t + 0.18, 1.3, 0.3, "highpass", 6000, 0.4); },
+    // spooky suspense: low tremolo drone that rises
+    suspense: function () { var c = ready(); if (!c) return; var t = c.currentTime + 0.03, g = c.createGain(), l = c.createOscillator(), lg = c.createGain();
+      g.gain.value = 0.5; l.frequency.value = 9; lg.gain.value = 0.45; l.connect(lg); lg.connect(g.gain); g.connect(master); l.start(t); l.stop(t + 3.2);
+      [45, 52, 57].forEach(function (m) { tone("sawtooth", N(m), t, 3, 0.07, g, N(m + 3)); }); },
+    // cartoon boing
+    boing: function () { var c = ready(); if (!c) return; var t = c.currentTime + 0.02, o = tone("triangle", 180, t, 0.6, 0.3, null, 520);
+      var l = c.createOscillator(), lg = c.createGain(); l.frequency.value = 14; lg.gain.value = 40; l.connect(lg); lg.connect(o.frequency); l.start(t); l.stop(t + 0.6); },
+    // crowd "ooooh!"
+    ooh: function () { var c = ready(); if (!c) return; var t = c.currentTime + 0.03;
+      for (var v = 0; v < 14; v++) { var f0 = 160 + Math.random() * 220, at = t + Math.random() * 0.15, o = c.createOscillator(), bp = c.createBiquadFilter(), g = c.createGain();
+        o.type = "sawtooth"; o.frequency.setValueAtTime(f0, at); o.frequency.linearRampToValueAtTime(f0 * 1.25, at + 0.5); o.frequency.linearRampToValueAtTime(f0 * 0.85, at + 1.5);
+        bp.type = "bandpass"; bp.frequency.value = 600; bp.Q.value = 2.5; g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(0.025, at + 0.25); g.gain.exponentialRampToValueAtTime(0.0001, at + 1.6);
+        o.connect(bp); bp.connect(g); g.connect(master); o.start(at); o.stop(at + 1.7); } },
     // Background music made in the browser (no YouTube, no files).
     // "party": upbeat festive house-pop for the waiting room. "circus": cheerful oom-pah game-show tune for the quiz.
     startLoop: function (kind) {
@@ -150,6 +181,6 @@
       if (bar === 3 && s8 === 4) { noise(t, 0.06, 0.2, "bandpass", 900, 6, bus); noise(t + 0.1, 0.06, 0.2, "bandpass", 700, 6, bus); }   // bike horn-ish woodblock
     } }
   };
-  S.NAMES = { applause: "👏 Aplausos", airhorn: "📯 Bocina", drumroll: "🥁 Redoble", trombone: "😂 Trombón triste", jingle: "✨ Sintonía", fanfare: "🎺 Fanfarria", ding: "🔔 Ding", whoosh: "💨 Whoosh" };
+  S.NAMES = { applause: "👏 Aplausos", airhorn: "📯 Bocina", drumroll: "🥁 Redoble", sting: "😱 ¡Chan chan!", crash: "💥 Platillos", tada: "🎉 ¡Tachán!", cash: "💰 Premio", fanfare: "🎺 Fanfarria", wrong: "❌ Error", trombone: "😂 Trombón triste", ooh: "😮 ¡Ooooh!", boing: "🤪 Boing", suspense: "👻 Suspense", jingle: "✨ Sintonía", ding: "🔔 Ding", whoosh: "💨 Whoosh" };
   T.sfx = S;
 })(window.T);

@@ -84,8 +84,56 @@
         return out;
       });
     },
+    // tracks + artists for the search box
+    searchAll: function (q) {
+      return SP.api("GET", "/search?" + form({ q: q, type: "track,artist", limit: 10, market: "from_token" })).then(function (r) {
+        var artists = ((r && r.artists && r.artists.items) || []).filter(function (a) { return a && a.images && a.images.length; }).slice(0, 8).map(function (a) {
+          return { id: a.id, n: a.name, img: a.images[a.images.length > 1 ? a.images.length - 2 : 0].url };
+        });
+        return SP.search(q).then(function (tracks) { return { tracks: tracks, artists: artists }; });
+      });
+    },
+    // several searches merged, shuffled (shelves and the party radio)
+    mix: function (queries, perQuery) {
+      var calls = [];
+      queries.forEach(function (q) { for (var p = 0; p < (perQuery || 2); p++) calls.push(SP.api("GET", "/search?" + form({ q: q, type: "track", limit: 10, offset: Math.floor(Math.random() * 4) * 10 + p * 10, market: "from_token" })).catch(function () { return null; })); });
+      return Promise.all(calls).then(function (rs) {
+        var seen = {}, out = [];
+        rs.forEach(function (r) { ((r && r.tracks && r.tracks.items) || []).forEach(function (x) {
+          if (!x || seen[x.uri] || seen[x.name + "|" + (x.artists[0] || {}).name]) return; seen[x.uri] = 1; seen[x.name + "|" + (x.artists[0] || {}).name] = 1;
+          var imgs = (x.album && x.album.images) || [];
+          out.push({ uri: x.uri, t: x.name, a: (x.artists || []).map(function (a) { return a.name; }).join(", "), img: imgs.length ? imgs[imgs.length > 1 ? 1 : 0].url : "", big: imgs.length ? imgs[0].url : "", dur: Math.round((x.duration_ms || 0) / 1000) });
+        }); });
+        for (var i = out.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = out[i]; out[i] = out[j]; out[j] = t; }
+        return out;
+      });
+    },
+    // a karaoke / instrumental version of a song, if Spotify has one of about the same length
+    karaokeOf: function (title, artist, dur) {
+      var clean = String(title).replace(/\s*[-(\[].*$/, "").trim();
+      return SP.search(clean + " karaoke").then(function (list) {
+        var nt = T.norm(clean);
+        var hit = list.filter(function (x) {
+          var n = T.norm(x.t + " " + x.a);
+          return /karaoke|instrumental/.test(n) && n.indexOf(nt) >= 0 && (!dur || Math.abs(x.dur - dur) <= 6);
+        });
+        return hit[0] || null;
+      }).catch(function () { return null; });
+    },
+    // first track for "title artist" (originals, not karaoke)
+    findOne: function (q) {
+      return SP.api("GET", "/search?" + form({ q: q, type: "track", limit: 5, market: "from_token" })).then(function (r) {
+        var it = ((r && r.tracks && r.tracks.items) || []).filter(function (x) { return x && !/karaoke|instrumental/i.test(x.name + " " + (x.artists || []).map(function (a) { return a.name; }).join(" ")); })[0];
+        return it ? { uri: it.uri, t: it.name, a: (it.artists || []).map(function (a) { return a.name; }).join(", "), dur: Math.round((it.duration_ms || 0) / 1000) } : null;
+      });
+    },
+    playList: function (uris, device) { return SP.api("PUT", "/me/player/play" + (device ? "?device_id=" + encodeURIComponent(device) : ""), { uris: uris.slice(0, 80) }); },
+    setVolume: function (pct, device) {
+      if (SP.player && SP.player.setVolume && device === SP.sdkId) return SP.player.setVolume(Math.max(0, Math.min(1, pct / 100))).catch(function () {});
+      return SP.volume(pct, device);
+    },
     devices: function () { return SP.api("GET", "/me/player/devices").then(function (r) { return ((r && r.devices) || []).map(function (d) { return { id: d.id, name: d.name, type: d.type, active: d.is_active, restricted: d.is_restricted }; }); }); },
-    play: function (uri, device) { return SP.api("PUT", "/me/player/play" + (device ? "?device_id=" + encodeURIComponent(device) : ""), { uris: [uri] }); },
+    play: function (uri, device, posMs) { var b = { uris: [uri] }; if (posMs) b.position_ms = Math.round(posMs); return SP.api("PUT", "/me/player/play" + (device ? "?device_id=" + encodeURIComponent(device) : ""), b); },
     pause: function (device) { return SP.api("PUT", "/me/player/pause" + (device ? "?device_id=" + encodeURIComponent(device) : "")).catch(function () {}); },
     resume: function (device) { return SP.api("PUT", "/me/player/play" + (device ? "?device_id=" + encodeURIComponent(device) : "")).catch(function () {}); },
     volume: function (pct, device) { return SP.api("PUT", "/me/player/volume?" + form({ volume_percent: Math.round(pct), device_id: device || "" })).catch(function () {}); },
@@ -97,7 +145,7 @@
         var done = false, to = setTimeout(function () { if (!done) { done = true; rej(new Error("sdk-timeout")); } }, 15000);
         window.onSpotifyWebPlaybackSDKReady = function () {
           var p = new window.Spotify.Player({ name: name || "PARTIENDO LA TARIMA", volume: 0.9, getOAuthToken: function (cb) { SP.token().then(cb, function () {}); } });
-          p.addListener("ready", function (e) { if (done) return; done = true; clearTimeout(to); SP.player = p; res(e.device_id); });
+          p.addListener("ready", function (e) { if (done) return; done = true; clearTimeout(to); SP.player = p; SP.sdkId = e.device_id; res(e.device_id); });
           ["initialization_error", "authentication_error", "account_error"].forEach(function (ev) { p.addListener(ev, function (e) { if (done) return; done = true; clearTimeout(to); rej(new Error(ev + ": " + (e && e.message))); }); });
           p.connect();
         };
@@ -108,4 +156,25 @@
     activate: function () { try { if (SP.player && SP.player.activateElement) SP.player.activateElement(); } catch (e) {} }
   };
   T.spotify = SP;
+
+  /* Synced lyrics from LRCLIB (free, open database): [{t: seconds, x: text}] or null */
+  T.lyrics = function (title, artist, dur) {
+    var clean = String(title).replace(/\s*[-(\[].*$/, "").trim(), art = String(artist || "").split(",")[0].trim();
+    function parse(lrc) {
+      var out = [];
+      String(lrc || "").split("\n").forEach(function (line) {
+        var m = line.match(/^\[(\d+):(\d+(?:\.\d+)?)\]\s*(.*)$/); if (!m) return;
+        out.push({ t: +m[1] * 60 + +m[2], x: m[3] });
+      });
+      return out.length > 3 ? out : null;
+    }
+    var base = "https://lrclib.net/api/";
+    return fetch(base + "get?" + form({ track_name: clean, artist_name: art, duration: dur || "" })).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+      if (j && j.syncedLyrics) return parse(j.syncedLyrics);
+      return fetch(base + "search?" + form({ track_name: clean, artist_name: art })).then(function (r) { return r.json(); }).then(function (list) {
+        var best = (list || []).filter(function (x) { return x.syncedLyrics; }).sort(function (a, b) { return Math.abs((a.duration || 0) - (dur || 0)) - Math.abs((b.duration || 0) - (dur || 0)); })[0];
+        return best ? parse(best.syncedLyrics) : null;
+      });
+    }).catch(function () { return null; });
+  };
 })(window.T);

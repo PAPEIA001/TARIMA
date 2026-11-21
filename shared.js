@@ -377,6 +377,17 @@ var T = (function () {
     }
     return Promise.resolve().then(function () { return subtle.digest("SHA-256", data); }).then(hex, function () { return window.__sha256hex(data); });
   }
+  // Spotify "shelves" for the music browser and the party radio. q = Spotify search query.
+  var SPCATS = [
+    { k: "80s", e: "📼", n: "Años 80", q: ["year:1980-1989", "year:1980-1989 genre:pop", "year:1980-1989 genre:rock"], c: "#ff3d7f,#8a2bd6" },
+    { k: "90s", e: "💿", n: "Años 90", q: ["year:1990-1999", "year:1990-1999 genre:dance", "year:1990-1999 genre:pop"], c: "#3db8ff,#1b4fd6" },
+    { k: "funk", e: "🕺", n: "Funk y disco", q: ["genre:funk", "genre:disco", "genre:soul year:1970-1989"], c: "#ffb547,#e53935" },
+    { k: "esp", e: "💃", n: "Pop español", q: ["genre:\"spanish pop\"", "genre:\"latin pop\" year:1990-2010", "genre:\"rock en espanol\""], c: "#ff8a3d,#c2185b" },
+    { k: "latino", e: "🌴", n: "Latino", q: ["genre:reggaeton", "genre:\"latin pop\"", "genre:salsa"], c: "#1fbf8f,#0b6b5b" },
+    { k: "hoy", e: "🔥", n: "Lo más actual", q: ["year:2024-2026", "year:2023-2026 genre:pop", "year:2024-2026 genre:dance"], c: "#ff5f2e,#8a2bd6" },
+    { k: "rock", e: "🎸", n: "Rock", q: ["genre:rock year:1975-2005", "genre:\"classic rock\"", "genre:\"spanish rock\""], c: "#5b5b6b,#22222b" },
+    { k: "himnos", e: "🎉", n: "Himnos de fiesta", q: ["genre:dance year:2000-2015", "genre:\"europop\"", "genre:\"dance pop\" year:2005-2020"], c: "#d4a017,#8a2bd6" }
+  ];
   // PARTIENDO LA TARIMA logo, Hollywood-sign style (needs brand.css). small = letters only.
   function logo(small) {
     var k = 0, rot = [-3, 2, -1, 3, -2, 1, -3, 2, 0, -2, 3, -1, 2, -3, 1, -2, 3];
@@ -707,6 +718,6 @@ var T = (function () {
     return location.href.replace(/[?#].*$/, "").replace(/[^/]*$/, "");
   }
 
-  return { BROKERS: BROKERS, CATALOG: CATALOG, esc: esc, rand: rand, hash: hash, logo: logo, TELE: "is.gd/partiendolatarima", SPOTIFY_CLIENT: "404990f6971f4a5d8333522fc9623163", ytId: ytId, playlistId: playlistId, norm: norm,
+  return { BROKERS: BROKERS, CATALOG: CATALOG, esc: esc, rand: rand, hash: hash, logo: logo, SPCATS: SPCATS, TELE: "is.gd/partiendolatarima", SPOTIFY_CLIENT: "404990f6971f4a5d8333522fc9623163", ytId: ytId, playlistId: playlistId, norm: norm,
     initials: initials, pw: pw, TASTES: TASTES, fit: fit, artistsOf: artistsOf, festive: festive, CHANNELS: CHANNELS, ytGet: ytGet, cleanTitle: cleanTitle, syncCatalog: syncCatalog, searchYT: searchYT, resolveChannel: resolveChannel, adminTopic: adminTopic, COLORS: COLORS, applyColor: applyColor, hue: hue, art: art, avatar: avatar, store: store, connect: connect, topics: topics, mmss: mmss, siteBase: siteBase };
 })();

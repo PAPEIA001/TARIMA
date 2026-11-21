@@ -233,6 +233,11 @@
       vote: ["¡Votad ya en el móvil! ¿Quién se ha marcado el mejor baile?", "¡A votar, chavales! Quince segunditos."],
       tie: ["¡Empate técnico! Doscientos cincuenta puntos para cada uno, que aquí somos justos."],
       danceWin: ["¡Y el ganador del duelo es… {n}! Quinientos puntitos para el bolsillo.", "¡{n} arrasa en la pista! Cada vez más cerca de partir la tarima."],
+      dj: ["Y ahora suena {s}, cortesía de {n}. ¡Buen gusto, sí señor!", "¡Temazo pedido por {n}! A ver quién se resiste a mover los pies.", "Esta va por {n}, que ha pedido {s}. ¡Subid ese volumen!", "¡Ojo a lo que ha pedido {n}! {s}. Esto es un reality, pero de los buenos."],
+      pruebaEnd: ["¡Tiempo! Qué barbaridad lo que acabamos de ver. Un aplauso enorme, que se lo han ganado.", "¡Se acabó! Esto pasa directo al resumen de la temporada.", "¡Y tiempo! Que conste en acta: aquí nadie se ha rajado."],
+      pruebaSolo: ["¡Atención, que esto se pone interesante! {n}, el plató es tuyo.", "{n}, respira hondo. Todo el mundo te mira, pero te queremos igual."],
+      pruebaAll: ["¡Todo el mundo de pie! Esta prueba es para la casa entera.", "¡Concursantes, al centro de la pista! Aquí no se libra nadie."],
+      pruebaPair: ["¡Cara a cara! {n} contra {m}. Que gane el más valiente.", "¡Duelo en el plató! {n} y {m}, esto es entre vosotros."],
       duo: ["¡Dúo sorpresa! {n} y {m}, os toca cantar juntos {s}. ¡Sin excusas!", "¡Pareja inesperada! {n} y {m} se marcan {s}. ¡Esto va a ser épico!"],
       guess: ["¡Adivina la canción! Escuchad bien y pulsad en el móvil. El más rápido, más puntos.", "¡Orejas atentas! ¿Qué canción es esta?"],
       hype: ["¡Tú puedes, {n}!", "¡Dale caña, {n}!", "¡A por todas, {n}!", "¡Este es tu momento, {n}!"]
@@ -352,9 +357,62 @@
   };
   T.speaksSpanish = function (lang) { return !lang || lang.indexOf("es") === 0; };
 
+  /* ---------- reality challenges (pruebas) ----------
+     who: 0 everyone, 1 one guest, 2 a pair. end: "vote" (phones pick a winner), "clap" (applause, +200 each).
+     vibe: background song style (original songs, never karaoke tracks); "" = no music. {n} {m} names, {x} random extra. */
+  T.VIBES = {
+    fiesta: [["Uptown Funk", "Bruno Mars"], ["Danza Kuduro", "Don Omar"], ["Aserejé", "Las Ketchup"], ["Macarena", "Los Del Rio"], ["Y.M.C.A.", "Village People"], ["Waka Waka", "Shakira"], ["Dancing Queen", "ABBA"], ["Stayin' Alive", "Bee Gees"], ["Rasputin", "Boney M."], ["Mi Gente", "J Balvin"], ["Bailando", "Enrique Iglesias"], ["Don't Start Now", "Dua Lipa"], ["September", "Earth, Wind & Fire"], ["Gasolina", "Daddy Yankee"], ["Vivir Mi Vida", "Marc Anthony"], ["Levitating", "Dua Lipa"], ["Hips Don't Lie", "Shakira"], ["Happy", "Pharrell Williams"]],
+    rock: [["Livin' on a Prayer", "Bon Jovi"], ["Highway to Hell", "AC/DC"], ["Smells Like Teen Spirit", "Nirvana"], ["Sweet Child O' Mine", "Guns N' Roses"], ["Seven Nation Army", "The White Stripes"], ["Don't Stop Me Now", "Queen"], ["Eye of the Tiger", "Survivor"], ["Jump", "Van Halen"], ["Thunderstruck", "AC/DC"]],
+    pasarela: [["I'm Too Sexy", "Right Said Fred"], ["Vogue", "Madonna"], ["Sexy and I Know It", "LMFAO"], ["Super Freak", "Rick James"], ["Freedom! '90", "George Michael"], ["Express Yourself", "Madonna"], ["Pretty Woman", "Roy Orbison"]],
+    robot: [["Around the World", "Daft Punk"], ["One More Time", "Daft Punk"], ["Mr. Roboto", "Styx"], ["Technologic", "Daft Punk"], ["Pump Up the Jam", "Technotronic"], ["Blue (Da Ba Dee)", "Eiffel 65"], ["Harder, Better, Faster, Stronger", "Daft Punk"]],
+    epica: [["Chariots of Fire", "Vangelis"], ["My Heart Will Go On", "Céline Dion"], ["I Will Always Love You", "Whitney Houston"], ["Total Eclipse of the Heart", "Bonnie Tyler"], ["Careless Whisper", "George Michael"], ["The Final Countdown", "Europe"]],
+    diva: [["I Will Survive", "Gloria Gaynor"], ["Like a Prayer", "Madonna"], ["Toxic", "Britney Spears"], ["Single Ladies (Put a Ring on It)", "Beyoncé"], ["Bad Romance", "Lady Gaga"], ["Malamente", "ROSALÍA"], ["Mamma Mia", "ABBA"], ["Lady Marmalade", "Christina Aguilera"], ["Wannabe", "Spice Girls"], ["Flowers", "Miley Cyrus"]],
+    latino: [["La Bamba", "Ritchie Valens"], ["Suavemente", "Elvis Crespo"], ["La Vida Es Un Carnaval", "Celia Cruz"], ["Conga", "Gloria Estefan"], ["El Taxi", "Pitbull"], ["La Gozadera", "Gente de Zona"], ["Vivir Mi Vida", "Marc Anthony"]],
+    verbena: [["Paquito el Chocolatero", "Gustavo Pascual Falcó"], ["Los Pajaritos", "María Jesús y su Acordeón"], ["El Baile del Gorila", "Melody"], ["Saturday Night", "Whigfield"], ["Twist and Shout", "The Beatles"], ["Tutti Frutti", "Little Richard"], ["Mayonesa", "Chocolate"], ["Follow the Leader", "The Soca Boys"]],
+    lounge: [["Take Five", "Dave Brubeck"], ["Mas Que Nada", "Sergio Mendes"], ["The Pink Panther Theme", "Henry Mancini"], ["The Girl from Ipanema", "Stan Getz"], ["Fly Me to the Moon", "Frank Sinatra"]]
+  };
+  var ANIMALS = ["flamenco", "pingüino", "canguro", "gorila", "gallina", "pulpo", "gusano", "pavo real", "foca", "cangrejo", "jirafa", "mono"];
+  var AWARDS = ["mejor siesta del año", "persona que más tarda en salir de casa", "mejor imitación de un grifo", "mayor fan del ketchup", "mejor bailarín de cocina", "récord de audios de WhatsApp", "peor aparcamiento de la historia", "mejor cara de sueño"];
+  var OBJECTS = ["una cuchara", "un cojín", "un zapato", "una servilleta", "el mando de la tele", "un vaso de plástico", "una zapatilla", "un globo"];
+  T.PRUEBAS = {
+    lento: { e: "🐌", t: "Baile a cámara lenta", who: 2, dur: 40, vibe: "epica", end: "vote", d: "{n} y {m} bailan como en una peli a cámara lenta. Cuanto más dramático, mejor.", v: "¡Baile a cámara lenta! {n} y {m}, quiero ver drama, quiero ver épica, quiero ver lágrimas." },
+    desfile: { e: "💅", t: "Desfile de supermodelos", who: 2, dur: 40, vibe: "pasarela", end: "vote", d: "La pista es una pasarela. {n} y {m} desfilan con actitud, pose final y mirada asesina.", v: "¡Desfile de supermodelos! {n} y {m}, la pasarela es vuestra. Actitud, giro y pose final." },
+    guitarra: { e: "🎸", t: "Guitarra invisible", who: 2, dur: 35, vibe: "rock", end: "vote", d: "Solo de guitarra imaginaria. {n} contra {m}. Melenas al viento y de rodillas si hace falta.", v: "¡Guitarra invisible! {n} contra {m}. Quiero ver solos de estadio, de rodillas y con melena." },
+    robot: { e: "🤖", t: "Baile robot", who: 2, dur: 35, vibe: "robot", end: "vote", d: "{n} y {m} bailan como robots. Nada de movimientos humanos: todo a trompicones.", v: "¡Modo robot activado! {n} y {m}, ni un movimiento humano, por favor." },
+    espejo: { e: "🪞", t: "El espejo", who: 2, dur: 40, vibe: "fiesta", end: "clap", swap: true, d: "{n} baila y {m} es su reflejo: copia cada movimiento a la vez. A mitad, ¡cambio!", v: "¡El espejo! {n} baila y {m} lo copia todo, todo y todo. Y a mitad de canción, cambio." },
+    playback: { e: "💋", t: "Playback de diva", who: 2, dur: 45, vibe: "diva", end: "vote", d: "Suena la canción original. {n} y {m} hacen playback como estrellas. Prohibido cantar de verdad.", v: "¡Playback de diva! {n} y {m}, moved los labios como si fuera vuestro último concierto." },
+    oscar: { e: "🏆", t: "Discurso de los Óscar", who: 1, dur: 30, vibe: "epica", end: "clap", d: "{n} acaba de ganar el Óscar a «{x}». 30 segundos de discurso con lágrimas y agradecimientos.", v: "¡Y el Óscar a {x} es para… {n}! Sube a recogerlo. Tienes treinta segundos y queremos lágrimas.", x: AWARDS },
+    teletienda: { e: "📺", t: "Teletienda", who: 2, dur: 45, vibe: "lounge", end: "vote", d: "{n} y {m} venden {x} como en la teletienda de madrugada. ¡Llame ya!", v: "¡Teletienda! {n} y {m}, tenéis que vender {x} como si fueran las tres de la mañana. ¡Llame ya!", x: OBJECTS },
+    risa: { e: "😐", t: "Prohibido reírse", who: 2, dur: 40, vibe: "", end: "vote", d: "{n} y {m}, cara de póker. Los demás intentan haceros reír. Votad quién ha aguantado mejor.", v: "¡Prohibido reírse! {n} y {m}, cara de póker. Los demás, tenéis permiso para hacer el payaso." },
+    narrador: { e: "🎙️", t: "Narrador de fútbol", who: 1, dur: 35, vibe: "", end: "clap", d: "{n} narra lo que pasa en la fiesta como un partido de fútbol. ¡Gooool incluido!", v: "¡Conectamos con nuestro narrador estrella, {n}! Cuéntanos esta fiesta como una final de Champions." },
+    conga: { e: "🚂", t: "La conga", who: 0, dur: 45, vibe: "latino", end: "clap", d: "¡Todo el mundo en fila! Conga por toda la casa hasta que pare la música.", v: "¡Conga! Todo el mundo en fila, manos en los hombros del de delante y que no se suelte nadie." },
+    animal: { e: "🦩", t: "Baile del animal", who: 2, dur: 35, vibe: "fiesta", end: "vote", d: "{n} baila como un {x} y {m} como un {y}. Que se note qué animal sois.", v: "¡Baile del animal! {n} es un {x} y {m} un {y}. ¡Que empiece el documental!", x: ANIMALS },
+    boda: { e: "👴", t: "Baile de boda", who: 2, dur: 35, vibe: "verbena", end: "vote", d: "{n} y {m} bailan como el tío de la boda a las cuatro de la mañana. Corbata en la cabeza opcional.", v: "¡Baile de boda! {n} y {m}, sois el tío que lo da todo a las cuatro de la mañana." },
+    imita: { e: "🎂", t: "Imita al protagonista", who: 2, dur: 30, vibe: "", end: "vote", d: "{n} y {m} imitan a quien celebra la fiesta: su risa, su forma de bailar y su frase típica.", v: "¡Imitación! {n} y {m}, convertíos en el protagonista de la fiesta. Risa, frase típica y todo." },
+    telenovela: { e: "💔", t: "Escena de telenovela", who: 2, dur: 40, vibe: "epica", end: "clap", d: "{n} y {m} improvisan una telenovela: traición, gemelo malvado y bofetada falsa.", v: "¡Telenovela! {n} y {m}, quiero traición, quiero un gemelo malvado y una bofetada falsa." },
+    pies: { e: "🦶", t: "Baile sin pies", who: 2, dur: 35, vibe: "fiesta", end: "vote", d: "{n} y {m} bailan sin mover los pies. Solo caderas, brazos y cara. Quien los mueva, pierde.", v: "¡Baile sin pies! {n} y {m}, pies pegados al suelo. Lo demás, todo lo que queráis." },
+    sillas: { e: "🪑", t: "Sillas musicales", who: 0, dur: 50, vibe: "fiesta", end: "clap", pauses: true, d: "Una silla menos que jugadores. Cuando pare la música, ¡a sentarse! El que se queda de pie, fuera.", v: "¡Sillas musicales! Una silla menos que gente. Cuando pare la música, a sentarse rapidito." }
+  };
+  T.pruebaText = function (p, a, b) {
+    var x = p.x ? p.x[Math.floor(Math.random() * p.x.length)] : "", y = p.x ? p.x[Math.floor(Math.random() * p.x.length)] : "";
+    if (y === x && p.x && p.x.length > 1) y = p.x[(p.x.indexOf(x) + 1) % p.x.length];
+    var f = function (s) { return String(s || "").replace(/\{n\}/g, a || "").replace(/\{m\}/g, b || "").replace(/\{x\}/g, x).replace(/\{y\}/g, y); };
+    return { d: f(p.d), v: f(p.v || p.d) };
+  };
+
   /* ---------- picking a voice ---------- */
   var FEM = /(m[oó]nica|paulina|marisol|helena|laura|sabina|elvira|luc[ií]a|dalia|paloma|penelope|lupe|\bmia\b|samantha|karen|victoria|susan|zira|hazel|serena|kate|moira|tessa|fiona|am[eé]lie|audrey|marie|julie|alice|federica|elsa|anna|petra|helga|hedda|luciana|joana|francisca|ximena|ang[eé]lica|esperanza|soledad|catalina|female|mujer|woman|aria|jenny|libby|sonia|denise|elena|isabella|clara|camila|valentina|google espa[nñ]ol$|google us english|google español de estados unidos)/i;
-  var MALE = /(jorge|juan|diego|pablo|ra[uú]l|enrique|carlos|miguel|[aá]lvaro|daniel|alex|fred|david|mark|george|thomas|rishi|aaron|arthur|luca|cosimo|reed|eddy|rocko|ralph|stefan|markus|yannick|thierry|male|hombre|\bman\b|guy|ryan|eric|alvaro|dario|jorge|antonio|gonzalo|tom[aá]s|lorenzo|google uk english male)/i;
+  var MALE = /(jorge|juan|diego|pablo|ra[uú]l|enrique|carlos|miguel|[aá]lvaro|daniel|alex|fred|david|mark|george|thomas|rishi|aaron|arthur|luca|cosimo|ralph|stefan|markus|yannick|thierry|male|hombre|\bman\b|guy|ryan|eric|alvaro|dario|jorge|antonio|gonzalo|tom[aá]s|lorenzo|google uk english male)/i;
+  // Apple's joke voices and the robotic "Eloquence" set sound terrible for a host
+  var NOVELTY = /(albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|grandma|grandpa|abuel|rocko|shelley|sandy|flo\b|eddy|reed|junior|ralph|kathy|fred)/i;
+  function quality(v) {
+    var n = v.name || "", q = 0;
+    if (/(premium|mejorad|enhanced|neural|natural|siri)/i.test(n)) q += 5;
+    if (/google/i.test(n)) q += 4;
+    if (/(m[oó]nica|paulina|jorge|juan|diego|marisol|elvira|alvaro|[aá]lvaro|dalia|helena|laura|pablo)/i.test(n)) q += 2;
+    if (v.localService) q += 1;
+    return q;
+  }
   T.pickVoice = function (voices, lang, gender) {
     var base = lang.split("-")[0];
     var exact = voices.filter(function (v) { return (v.lang || "").replace("_", "-").toLowerCase() === lang.toLowerCase(); });
@@ -365,10 +423,13 @@
     }
     if (!same.length) return { voice: null, pitch: gender === "m" ? 0.85 : 1.1 };
     var re = gender === "m" ? MALE : FEM, other = gender === "m" ? FEM : MALE;
+    var good = same.filter(function (v) { return !NOVELTY.test(v.name); });
+    if (good.length) same = good;
+    var byQ = function (a, b) { return quality(b) - quality(a); };
     var hit = same.filter(function (v) { return re.test(v.name); });
-    if (hit.length) return { voice: hit.sort(function (a, b) { return (b.localService ? 0 : 1) - (a.localService ? 0 : 1); })[0], pitch: 1 };
+    if (hit.length) return { voice: hit.sort(byQ)[0], pitch: 1 };
     var neutral = same.filter(function (v) { return !other.test(v.name); });
-    var v = (neutral.length ? neutral : same)[0];
+    var v = (neutral.length ? neutral : same).sort(byQ)[0];
     return { voice: v, pitch: gender === "m" ? 0.8 : 1.15 };
   };
   var cachedVoices = [];
@@ -384,10 +445,13 @@
     u.lang = pk.voice ? pk.voice.lang : lang; if (pk.voice) u.voice = pk.voice;
     u.pitch = Math.min(2, pk.pitch * (opts.gender === "m" ? 0.95 : 1.08)); u.rate = opts.rate || 1.12; u.volume = 1;
     var done = false, end = function () { if (done) return; done = true; clearTimeout(guard); if (opts.onend) opts.onend(); };
-    var guard = setTimeout(end, 2500 + text.length * 110);   // some TVs never fire onend
-    u.onstart = function () { if (opts.onstart) opts.onstart(); };
+    var began = false;
+    var guard = setTimeout(function () { if (!began) { try { speechSynthesis.cancel(); } catch (e) {} } end(); }, 2500 + text.length * 110);   // some TVs never fire onend; a stuck queue is flushed
+    u.onstart = function () { began = true; if (opts.onstart) opts.onstart(); };
     u.onend = end; u.onerror = end;
-    try { speechSynthesis.speak(u); } catch (e) { end(); return false; }
+    try { if (speechSynthesis.paused) speechSynthesis.resume(); speechSynthesis.speak(u); } catch (e) { end(); return false; }
+    // Chrome stops long utterances after ~15 s unless it is nudged
+    var ka = setInterval(function () { if (done) { clearInterval(ka); return; } try { if (speechSynthesis.speaking && !/android/i.test(navigator.userAgent)) { speechSynthesis.pause(); speechSynthesis.resume(); } } catch (e) {} }, 10000);
     return true;
   };
 })(window.T);

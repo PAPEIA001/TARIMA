@@ -18,6 +18,16 @@ Crea tu cuenta de administrador (usuario y contraseña) y desde ahí:
 
 Puedes entrar al panel desde cualquier dispositivo con tu usuario y contraseña. Si olvidas la contraseña no se puede recuperar.
 
+## Novedades v6: Reality show + Spotify
+
+- **Modo Reality show** (antes «karaoke»): con Spotify conectado, el karaoke suena desde Spotify (versión karaoke si existe, si no la original) con la letra sincronizada de LRCLIB en la tele. Sin anuncios de YouTube.
+- **Modo música solo Spotify**: buscador arriba, categorías (80s, 90s, funk, pop español, latino, actual, rock, himnos), artistas y canciones. 2 canciones por móvil.
+- **Música de fondo desde Spotify** en la sala de espera y el concurso; los efectos (redoble, platillos, fanfarria, premio…) siguen sonando encima.
+- **17 pruebas nuevas**: cámara lenta, desfile, guitarra invisible, robot, espejo, playback, Óscar, teletienda, prohibido reírse, narrador, conga, baile del animal, baile de boda, imita al protagonista, telenovela, baile sin pies y sillas musicales. Las de baile suenan con la canción original.
+- **Preguntas y pruebas de la casa**: el administrador las escribe al crear la fiesta y el moderador las añade y las lanza en directo.
+- **Mesa de efectos del moderador**: barra fija abajo con 12 efectos que se pueden lanzar en cualquier momento; Spotify baja un momento para que se oigan.
+- **Presentador**: elige las voces de más calidad del dispositivo, evita las voces de broma y no se corta en frases largas.
+
 ## Novedades v5: PARTIENDO LA TARIMA
 
 - **Nuevo nombre y logo.** PARTIENDO LA TARIMA, con rótulo tipo Hollywood en la tele, el móvil, el administrador y el moderador. Quien gana la noche es «la estrella que ha partido la tarima».

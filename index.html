@@ -5,17 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0d0b11">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>PARTIENDO LA TARIMA · karaoke</title>
+<title>PARTIENDO LA TARIMA · Reality show</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=1795275490">
-<link rel="stylesheet" href="brand.css?v=1795275490">
-<script src="compat.js?v=1795275490"></script>
-<script src="vendor/mqtt.min.js?v=1795275490"></script>
+<link rel="stylesheet" href="app.css?v=1795284827">
+<link rel="stylesheet" href="brand.css?v=1795284827">
+<script src="compat.js?v=1795284827"></script>
+<script src="vendor/mqtt.min.js?v=1795284827"></script>
 <script>window.mqtt || document.write('<script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
-<script src="shared.js?v=1795275490"></script>
-<script src="trivia.js?v=1795275490"></script>
+<script src="shared.js?v=1795284827"></script>
+<script src="trivia.js?v=1795284827"></script>
 </head>
 <body>
 <div class="app" id="app"></div>
@@ -73,7 +73,7 @@ function onMsg(topic, m) {
     if (!S.state || (m.ts || 0) >= (S.state.ts || 0)) {
       var prevMode = S.state && S.state.mode;
       S.state = m; S.lastState = Date.now();
-      if (prevMode && m.mode !== prevMode) { S.yt = null; toast(m.mode === "music" ? "La fiesta ha pasado a modo música 🎵" : "¡Vuelve el karaoke! 🎤"); }
+      if (prevMode && m.mode !== prevMode) { S.yt = null; toast(m.mode === "music" ? "🎵 Modo música" : "🎤 ¡Empieza el Reality show!"); }
       if (S.session) { soft(); paintQuiz(); }
     }
   } else if (topic === S.topics.say) {
@@ -275,7 +275,7 @@ function paintMini() {
     var music = isMusic();
     var label = music ? "🎵 " : n.phase === "intro" ? "🚶 " : n.phase === "outro" ? "👏 " : "🎤 ";
     var canClap = !music && n.phase === "playing" && n.singerId !== S.cid;
-    el.innerHTML = '<div class="mini' + (n.singerId === S.cid ? " me" : "") + '">' + face(n.singerId, n.singer, 40) + '<div style="flex:1;min-width:0"><b>' + esc(n.t) + "</b><small>" + label + esc(n.singer) + "</small></div>" +
+    el.innerHTML = '<div class="mini' + (n.singerId === S.cid ? " me" : "") + '">' + (n.img ? '<div class="art" style="width:40px;height:40px"><img src="' + esc(n.img) + '" alt=""></div>' : face(n.singerId, n.singer, 40)) + '<div style="flex:1;min-width:0"><b>' + esc(n.t) + "</b><small>" + label + esc(n.singer) + "</small></div>" +
       '<div class="eq" aria-hidden="true"><i></i><i></i><i></i></div>' +
       (canClap ? '<button class="clap" type="button" id="clap" aria-label="Aplaudir">👏</button>' : "") + '<div class="bar"><i style="width:' + pct + '%"></i></div></div>';
     var c = document.getElementById("clap");
@@ -286,7 +286,7 @@ function paintMini() {
     });
   } else {
     var bg = s.bg || {};
-    el.innerHTML = '<div class="mini idle"><span class="mi-ic">' + (bg.on ? "🎶" : "⏸️") + '</span><div style="flex:1;min-width:0"><b>' + esc(bg.title || "Música de la casa") + "</b><small>" + (bg.on ? "Sala de espera" : "En pausa") + "</small></div></div>";
+    el.innerHTML = '<div class="mini idle">' + (bg.img ? '<div class="art" style="width:40px;height:40px"><img src="' + esc(bg.img) + '" alt=""></div>' : '<span class="mi-ic">' + (bg.on ? "🎶" : "⏸️") + "</span>") + '<div style="flex:1;min-width:0"><b>' + esc(bg.title || "Música de la casa") + "</b><small>" + (bg.on ? "Sala de espera" : "En pausa") + "</small></div></div>";
   }
 }
 
@@ -392,7 +392,7 @@ function searchBox(music) {
   return '<form id="sf" class="sbox"><label class="search" for="qInput">' + ICON.search.replace("<svg", '<svg width="20" height="20"') +
     '<input id="qInput" type="search" enterkeyhint="search" autocomplete="off" placeholder="' + (music ? "Canción o artista" : "Busca canción o artista") + '" value="' + esc(S.q) + '">' +
     '<button type="button" class="clr" id="qClear" aria-label="Borrar"' + (S.q ? "" : " hidden") + ">" + ICON.x + "</button></label>" +
-    (st().canSearch ? '<button class="go" type="submit" aria-label="Buscar en YouTube">' + ICON.search.replace("<svg", '<svg width="20" height="20"') + "</button>" : "") + "</form>";
+    (st().canSearch && !spOn() ? '<button class="go" type="submit" aria-label="Buscar en YouTube">' + ICON.search.replace("<svg", '<svg width="20" height="20"') + "</button>" : "") + "</form>";
 }
 function pasteBlock(music) {
   return '<details class="paste"' + (music && !st().canSearch ? " open" : "") + '><summary>🔗 Pegar enlace de YouTube</summary><div class="box">' +
@@ -414,6 +414,7 @@ function ytResults() {
   return '<button class="btn sec ytgo' + (s.spotify ? " spgo" : "") + '" type="button" id="ytGo">' + (S.ytBusy ? "⏳ Buscando…" : (s.spotify ? "● Buscar «" + esc(S.q.trim()) + "» en Spotify" : "▶️ Buscar «" + esc(S.q.trim()) + "» en YouTube")) + "</button>";
 }
 function searchResults() {
+  if (spOn() || isMusic()) return spResults();
   var music = isMusic(), q = T.norm(S.q);
   if (music) return (S.q.trim() ? "" : artistChips()) + ytResults() + pasteBlock(true);
   var all = catAll(), list;
@@ -428,9 +429,50 @@ function searchResults() {
     (S.chip === "foryou" && !q && !list.length ? '<p class="empty">❤️ Elige tus estilos en <b>Fiesta → Mi perfil</b></p>' : "") +
     (list.slice(0, 150).map(songRow).join("") || (q ? '<p class="empty">😕 No está en el catálogo</p>' : "")) + ytResults() + pasteBlock(false);
 }
+/* ---------- Spotify browser (music mode, and show mode when the host has Spotify) ---------- */
+function spOn() { return !!st().spotify; }
+function spRow(x) {
+  var done = inQueue(x.uri);
+  return '<div class="row sprow"><div class="art" style="width:52px;height:52px">' + (x.img ? '<img src="' + esc(x.img) + '" alt="" loading="lazy">' : "") + '</div><div class="meta"><b>' + esc(x.t) + "</b><small>" + esc(x.a || "") + "</small></div>" +
+    '<button class="icon-btn add' + (done ? " done" : "") + '" type="button" data-sp="' + esc(x.uri) + '" data-title="' + esc(x.t) + '" data-ch="' + esc(x.a || "") + '" data-img="' + esc(x.img || "") + '" data-big="' + esc(x.big || "") + '" data-dur="' + (x.dur || 0) + '" aria-label="' + (done ? "Ya en tu cola" : "Añadir") + ": " + esc(x.t) + '">' + (done ? ICON.check : ICON.plus) + "</button></div>";
+}
+function spFetch(kind, q) {
+  var key = kind + "|" + q; S.spc = S.spc || {};
+  if (S.spc[key] && (S.spc[key].items || S.spc[key].busy)) return S.spc[key];
+  var c = S.spc[key] = { busy: true };
+  send({ type: "search", kind: kind, q: q }, 20000).then(function (r) {
+    c.busy = false;
+    if (r.ok) { c.items = r.items || []; c.artists = r.artists || []; } else { c.err = errText(r); delete S.spc[key]; toast(c.err, true); }
+    if (S.tab === "search" || S.tab === "home") refreshResults();
+  });
+  return c;
+}
+function spCats() {
+  return '<div class="spcats">' + T.SPCATS.map(function (c) { return '<button type="button" class="spcat" style="background:linear-gradient(135deg,' + c.c + ')" data-spv="cat" data-k="' + c.k + '" data-n="' + esc(c.n) + '"><b>' + esc(c.n) + "</b><span>" + c.e + "</span></button>"; }).join("") + "</div>";
+}
+function spArtists(list) {
+  return '<div class="sparts">' + list.map(function (a) { return '<button type="button" class="spart" data-spv="artist" data-k="' + esc(a.n) + '" data-n="' + esc(a.n) + '">' + (a.img ? '<img src="' + esc(a.img) + '" alt="" loading="lazy">' : T.art(a.n, 76)) + "<b>" + esc(a.n) + "</b></button>"; }).join("") + "</div>";
+}
+function spResults() {
+  var s = st(), q = S.q.trim();
+  if (!s.spotify) return isMusic() ? '<div class="nosp"><span>🎧</span><b>Falta conectar Spotify</b><small>El anfitrión lo conecta en la pantalla de la tele</small></div>' : "";
+  if (S.spv && !q) {
+    var c = spFetch(S.spv.kind, S.spv.k);
+    return '<div class="spvh"><button type="button" class="icon-btn" id="spBack" aria-label="Volver">‹</button><h3>' + esc(S.spv.n) + "</h3></div>" +
+      (c.busy ? '<p class="empty">⏳ Cargando…</p>' : (c.items || []).map(spRow).join("") || '<p class="empty">😕 Nada por aquí</p>');
+  }
+  if (q.length >= 2) {
+    var r = spFetch("q", q);
+    if (r.busy) return '<p class="empty">⏳ Buscando en Spotify…</p>';
+    return ((r.artists || []).length ? sign("⭐ Artistas") + spArtists(r.artists) : "") + sign('<span class="spdot">●</span> Canciones') + ((r.items || []).map(spRow).join("") || '<p class="empty">😕 Nada. Prueba otro nombre.</p>');
+  }
+  var arts = T.artistsOf(me()).slice(0, 10).map(function (a) { return { n: a }; });
+  return sign("🎧 Explorar") + spCats() + (arts.length ? sign("⭐ Tus artistas") + spArtists(arts) : "");
+}
 function hasReq() { return !!((S.cat || {}).req || []).length; }
 var VIEWS = {
   home: function () {
+    if (spOn()) return statusCard(false) + '<button type="button" class="sbar" data-gosearch="1">' + ICON.search.replace("<svg", '<svg width="20" height="20"') + "<span>Busca canción o artista</span></button>" + '<div id="res">' + spResults() + "</div>";
     var all = catAll(), fy = forYou(all).slice(0, 12);
     return statusCard(false) +
       '<button type="button" class="sbar" data-gosearch="1">' + ICON.search.replace("<svg", '<svg width="20" height="20"') + "<span>Busca canción o artista</span></button>" +
@@ -452,7 +494,7 @@ var VIEWS = {
       (host || n.singerId === S.cid ? '<button class="icon-btn big" type="button" data-act="skip" aria-label="Saltar">' + ICON.skip + "</button>" : '<div class="eq" aria-hidden="true"><i></i><i></i><i></i></div>') + "</div>"
       : '<div class="now empty-now"><span class="st-em">💤</span><b>Tele libre</b></div>';
     var hostTools = host ? '<div class="tools">' +
-      (!music ? '<button class="btn small" type="button" data-act="auto">🎲 Auto karaoke</button>' : "") +
+      (!music ? '<button class="btn small" type="button" data-act="auto">🎲 Sorteo</button>' : "") +
       (n && n.vid ? '<button class="btn small sec" type="button" data-act="ads">📢 ' + (s.ads ? "Sin anuncios" : "Tiene anuncios") + "</button>" : "") + "</div>" : "";
     var list = s.queue.map(function (q, i) {
       var mineQ = q.singerId === S.cid;
@@ -471,14 +513,15 @@ var VIEWS = {
       (!music ? rankingBlock(s, host) : "") +
       (host && s.spotify ? sign('<span class="spdot">●</span> Spotify') + '<div class="spbox"><small>Suena en</small><div class="chips wrap">' +
         (s.spotify.devices || []).map(function (d) { var ic = /tv/i.test(d.type) ? "📺" : /smartphone/i.test(d.type) ? "📱" : /computer/i.test(d.type) ? "💻" : "🔊"; return '<button class="chip" type="button" data-spdev="' + esc(d.id) + '" aria-pressed="' + (d.id === s.spotify.devId) + '">' + ic + " " + esc(d.name) + "</button>"; }).join("") +
-        '<button class="chip" type="button" data-act="sprefresh">🔄</button></div>' + (!(s.spotify.devices || []).length ? '<p class="empty">Abre Spotify en un móvil o altavoz y pulsa 🔄</p>' : "") + "</div>" : "") +
+        '<button class="chip" type="button" data-act="sprefresh">🔄</button></div>' + (!(s.spotify.devices || []).length ? '<p class="empty">Abre Spotify en un móvil o altavoz y pulsa 🔄</p>' : "") +
+        '<small>📻 Radio de la sala</small><div class="chips wrap">' + [{ k: "mix", e: "🎛️", n: "Mezcla" }].concat(T.SPCATS).map(function (c) { return '<button class="chip" type="button" data-radio="' + c.k + '" aria-pressed="' + ((s.radio || "mix") === c.k) + '">' + c.e + " " + esc(c.n) + "</button>"; }).join("") + "</div></div>" : "") +
       (host ? sign("⚙️ Anfitrión") +
-        '<div class="modes"><button type="button" data-mode="karaoke" aria-pressed="' + !music + '"><span class="mi">🎤</span><b>Karaoke</b></button><button type="button" data-mode="music" aria-pressed="' + music + '"><span class="mi">🎵</span><b>Música</b></button></div>' +
+        '<div class="modes"><button type="button" data-mode="karaoke" aria-pressed="' + !music + '"><span class="mi">🎤</span><b>Reality show</b></button><button type="button" data-mode="music" aria-pressed="' + music + '"><span class="mi">🎵</span><b>Música</b></button></div>' +
         '<div class="switch"><span>✋ Máximo 2 por persona</span><button class="tog" type="button" role="switch" aria-checked="' + (s.limit !== false) + '" data-set="limit" aria-label="Límite de canciones"></button></div>' +
-        (!music ? '<div class="switch"><span>🎲 Auto karaoke continuo</span><button class="tog" type="button" role="switch" aria-checked="' + !!s.autoOn + '" data-set="auto" aria-label="Auto karaoke continuo"></button></div>' : "") +
+        (!music ? '<div class="switch"><span>🎲 Sorteo continuo</span><button class="tog" type="button" role="switch" aria-checked="' + !!s.autoOn + '" data-set="auto" aria-label="Auto karaoke continuo"></button></div>' : "") +
         '<div class="switch"><span>🔄 Catálogo<small>' + (s.catAt ? new Date(s.catAt).toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "Sin actualizar") + '</small></span><button class="btn small sec" type="button" data-act="sync">Actualizar</button></div>' +
-        '<div class="switch"><span>' + (bg.on ? "🎶" : "⏸️") + " " + esc(bg.title || "Música de la casa") + '</span><span class="inline"><button class="icon-btn" type="button" data-bg="toggle" aria-label="' + (bg.on ? "Pausar" : "Reproducir") + ' la música de fondo">' + (bg.on ? "⏸" : "▶") + "</button>" + (bg.set ? '<button class="icon-btn" type="button" data-bg="next" aria-label="Siguiente">' + ICON.skip + "</button>" : "") + "</span></div>" +
-        '<details class="paste"><summary>🎵 Poner playlist de YouTube</summary><div class="box"><input id="bgUrl" inputmode="url" placeholder="youtube.com/playlist?list=…" aria-label="Enlace de la playlist"><button class="btn small" type="button" id="bgSet">Usar</button></div></details>' : "") +
+        '<div class="switch"><span>' + (bg.on ? "🎶" : "⏸️") + " " + esc(bg.title || "Música de la casa") + '</span><span class="inline"><button class="icon-btn" type="button" data-bg="toggle" aria-label="' + (bg.on ? "Pausar" : "Reproducir") + ' la música de fondo">' + (bg.on ? "⏸" : "▶") + "</button>" + (bg.set || s.spotify ? '<button class="icon-btn" type="button" data-bg="next" aria-label="Siguiente">' + ICON.skip + "</button>" : "") + "</span></div>" +
+        (s.spotify ? "" : '<details class="paste"><summary>🎵 Poner playlist de YouTube</summary><div class="box"><input id="bgUrl" inputmode="url" placeholder="youtube.com/playlist?list=…" aria-label="Enlace de la playlist"><button class="btn small" type="button" id="bgSet">Usar</button></div></details>') : "") +
       '<div class="switch"><span>🔊 Voz del presentador aquí</span><button class="tog" type="button" role="switch" aria-checked="' + !!S.voiceHere + '" id="voiceHere" aria-label="Voz del presentador en este móvil"></button></div>' +
       sign("👤 Mi perfil") + '<div class="box" id="prof">' + selfieBlock() +
       tasteChips(S.profile.tastes || []) +
@@ -526,6 +569,7 @@ function refreshResults() {
   var c = document.getElementById("qClear"); if (c) c.hidden = !S.q;
 }
 function doYt() {
+  if (spOn()) { refreshResults(); return; }
   var q = S.q.trim(), mode = st().mode; if (!q || !st().canSearch || S.ytBusy) return;
   S.ytBusy = true; refreshResults();
   send({ type: "search", q: q }, 15000).then(function (r) {
@@ -540,7 +584,8 @@ function bindSearch() {
   qi.addEventListener("input", function () {
     S.q = qi.value; S.yt = null;
     var c = document.getElementById("qClear"); if (c) c.hidden = !S.q;
-    clearTimeout(resT); resT = setTimeout(refreshResults, 150);
+    if (spOn()) S.spv = null;
+    clearTimeout(resT); resT = setTimeout(refreshResults, spOn() ? 450 : 150);
   });
   document.getElementById("qClear").addEventListener("click", function () { qi.value = ""; S.q = ""; S.yt = null; refreshResults(); qi.focus(); });
   document.getElementById("sf").addEventListener("submit", function (e) { e.preventDefault(); qi.blur(); clearTimeout(resT); refreshResults(); doYt(); });
@@ -549,6 +594,9 @@ function bindView(root) {
   var v = root || document.getElementById("view");
   v.querySelectorAll("[data-add]").forEach(function (b) { b.addEventListener("click", function () { addCmd({ type: "add", songId: b.dataset.add }); }); });
   v.querySelectorAll("[data-sp]").forEach(function (b) { b.addEventListener("click", function () { addCmd({ type: "add", sp: b.dataset.sp, title: b.dataset.title, ch: b.dataset.ch, img: b.dataset.img, big: b.dataset.big, dur: +b.dataset.dur || 0 }); }); });
+  v.querySelectorAll("[data-spv]").forEach(function (b) { b.addEventListener("click", function () { S.spv = { kind: b.dataset.spv, k: b.dataset.k, n: b.dataset.n }; S.q = ""; if (S.tab !== "search") { showTab("search"); return; } var qi = document.getElementById("qInput"); if (qi) qi.value = ""; refreshResults(); document.getElementById("view").scrollTop = 0; }); });
+  var bk = v.querySelector("#spBack"); if (bk) bk.addEventListener("click", function () { S.spv = null; refreshResults(); });
+  v.querySelectorAll("[data-radio]").forEach(function (b) { b.addEventListener("click", function () { simple({ type: "radio", k: b.dataset.radio }, "📻 Radio cambiada"); }); });
   v.querySelectorAll("[data-spdev]").forEach(function (b) { b.addEventListener("click", function () { simple({ type: "spdev", id: b.dataset.spdev }, "🔊 Ahora suena en " + b.textContent.replace(/^\S+\s/, "")); }); });
   v.querySelectorAll("[data-act=sprefresh]").forEach(function (b) { b.addEventListener("click", function () { simple({ type: "sprefresh" }); }); });
   v.querySelectorAll("[data-vid]").forEach(function (b) { b.addEventListener("click", function () { addCmd({ type: "add", vid: b.dataset.vid, title: b.dataset.title, ch: b.dataset.ch }); }); });

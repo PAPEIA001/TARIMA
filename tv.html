@@ -7,15 +7,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="brand.css?v=1795275490">
-<script src="compat.js?v=1795275490"></script>
-<script src="vendor/mqtt.min.js?v=1795275490"></script>
+<link rel="stylesheet" href="brand.css?v=1795284827">
+<script src="compat.js?v=1795284827"></script>
+<script src="vendor/mqtt.min.js?v=1795284827"></script>
 <script>window.mqtt || document.write('<script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
 <script src="vendor/qrcode.min.js"></script>
-<script src="shared.js?v=1795275490"></script>
-<script src="sfx.js?v=1795275490"></script>
-<script src="spotify.js?v=1795275490"></script>
-<script src="trivia.js?v=1795275490"></script>
+<script src="shared.js?v=1795284827"></script>
+<script src="sfx.js?v=1795284827"></script>
+<script src="spotify.js?v=1795284827"></script>
+<script src="trivia.js?v=1795284827"></script>
 <style>
 /* TV screen: full-window stage with four layers (idle, intro, playing, applause). Sizes in vw so it scales to any TV. */
 :root{
@@ -128,6 +128,15 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
 .spmeta span{font-size:2.2vw;color:rgba(255,255,255,.85)}
 .spmeta .spbadge{justify-self:start;font-size:1.2vw;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#1ed760;border:.2vw solid #1ed760;border-radius:.5vw;padding:.3vw .8vw}
 #sSp{background:#1ed760;color:#06210f}
+.lyr{position:absolute;top:0;right:0;bottom:0;left:0;display:none;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:4vw;background:radial-gradient(circle at 50% 30%,rgba(138,43,214,.55),rgba(0,0,0,.92) 70%)}
+.lyr.on{display:flex}
+.lyr-h{position:absolute;top:2vw;left:2vw}
+.lyr .spbadge{font-size:1.1vw;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#1ed760;border:.2vw solid #1ed760;border-radius:.5vw;padding:.3vw .8vw}
+.lyr p{margin:.6vw 0;font-family:var(--display);font-weight:800;line-height:1.1;max-width:90%}
+.lyr-prev{font-size:2.2vw;color:rgba(255,255,255,.35)}
+.lyr-now{font-size:4.6vw;color:#fff;text-shadow:0 0 2vw var(--accent)}
+.lyr-now.pop{animation:pop .35s ease-out}
+.lyr-next{font-size:2.6vw;color:rgba(255,255,255,.55)}
 
 /* applause */
 #L-outro{display:grid;place-items:center;text-align:center;background:radial-gradient(circle,rgba(255,181,71,.18),transparent 60%)}
@@ -157,6 +166,7 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
 #chal h2{font-family:var(--display);font-size:6vw;margin:0;line-height:1}
 #chal p{font-size:2.2vw;color:var(--muted);margin:1vw 0 0}
 #chal .vsx{font-family:var(--display);font-size:3.6vw;font-weight:800}
+#chal .chT{font-family:var(--display);font-size:11vw;line-height:1;margin:1vw 0;color:var(--accent2);text-shadow:0 0 3vw rgba(255,61,127,.6)}
 #chal .freeze{position:absolute;top:0;right:0;bottom:0;left:0;display:grid;place-items:center;background:rgba(120,200,255,.35);font-family:var(--display);font-size:12vw;font-weight:800;color:#fff;text-shadow:0 0 3vw #3db8ff}
 #L-quiz.reveal .qz-o.ok{opacity:1;transform:scale(1.04);box-shadow:0 0 0 .4vw #fff}
 .qz-foot{font-size:1.8vw;color:var(--muted);text-align:center;min-height:2.4vw}
@@ -235,7 +245,7 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
     <div><img id="iPhoto" alt="" style="display:none;width:9vw;height:9vw;border-radius:50%;object-fit:cover;margin:0 auto 1.6vw;border:.3vw solid var(--accent);box-shadow:0 0 3vw var(--accent)"><div class="eyebrow" id="iEyebrow">Sube a la tarima</div><div id="iName"></div><div id="iSong"></div><div id="hype"></div><div id="iCount"></div></div>
   </section>
   <section class="layer" id="L-play">
-    <div class="video"><div id="ytmain"></div><div class="spart" id="spArt"><div class="spbg" id="spBg"></div><img id="spImg" alt=""><div class="spmeta"><span class="spbadge">● Spotify</span><b id="spT"></b><span id="spA"></span></div></div></div>
+    <div class="video"><div id="ytmain"></div><div class="spart" id="spArt"><div class="spbg" id="spBg"></div><img id="spImg" alt=""><div class="spmeta"><span class="spbadge">● Spotify</span><b id="spT"></b><span id="spA"></span></div></div><div class="lyr" id="lyr"><div class="lyr-h"><span class="spbadge" id="lyrTag">● Spotify · sin anuncios</span></div><p class="lyr-prev" id="lyrPrev"></p><p class="lyr-now" id="lyrNow"></p><p class="lyr-next" id="lyrNext"></p></div></div>
     <div class="side">
       <div class="singer"><img id="pAv" alt="" style="display:none;width:7vw;height:7vw;border-radius:50%;object-fit:cover;border:.25vw solid #fff;margin-bottom:.4vw"><small id="pLabel">Ahora canta</small><b id="pName"></b><span id="pSong"></span><span id="pClaps" style="font-size:1.6vw;font-weight:700"></span></div>
       <div class="upnext"><div id="pNext" style="display:grid;gap:1vw"></div><div class="ticker" id="ticker"></div></div>
@@ -327,7 +337,7 @@ function Q() { return cfg.mode === "music" ? P.mqueue : P.queue; }
 if (P.now) { (P.now.kind === "music" ? P.mqueue : P.queue).unshift(P.now); P.now = null; }   // a song cut off by a reload starts again
 var now = null, phase = "idle", bgOn = true, bgTitle = "", H = {}, conn = null, tp = T.topics(cfg.code), gotConfig = false;
 var mainP = null, bgP = null, ytReady = false, started = false, timers = [], searchCache = {};
-function saveParty() { T.store("party." + cfg.code, { queue: P.queue, mqueue: P.mqueue, guests: P.guests, history: P.history || [], asked: P.asked || [], qn: P.qn || 0, now: now }); }
+function saveParty() { T.store("party." + cfg.code, { queue: P.queue, mqueue: P.mqueue, guests: P.guests, history: P.history || [], asked: P.asked || [], qn: P.qn || 0, now: now, myQs: P.myQs || [], myChs: P.myChs || [], chRecent: P.chRecent || [] }); }
 var guestUrl = T.siteBase() + "?p=" + cfg.code;
 
 /* ---------- screens ---------- */
@@ -396,6 +406,8 @@ function applyConfig(m) {
   if (typeof m.quiz === "number") cfg.quiz = m.quiz;
   if (m.voice) cfg.voice = m.voice;
   if (m.phrases) cfg.phrases = m.phrases;
+  if (m.myQs) cfg.myQs = m.myQs;
+  if (m.myChs) cfg.myChs = m.myChs;
   if (typeof m.chEvery === "number") cfg.chEvery = m.chEvery;
   if (typeof m.sfx === "boolean") { cfg.sfx = m.sfx; T.sfx.set(cfg.sfx); }
   if (m.mode && m.mode !== cfg.mode) { if (started) setMode(m.mode); else cfg.mode = m.mode; }
@@ -414,7 +426,8 @@ function go() {
   T.sfx.unlock(); T.sfx.set(cfg.sfx);
   if (started) return;
   started = true;
-  if (!cfg.bg && Q().length === 0) T.sfx.startLoop("party");   // festive house music from the very first second
+  if (!cfg.bg && Q().length === 0 && !T.spotify.connected()) T.sfx.startLoop("party");   // festive house music from the very first second
+  T.speak("¡Empieza el reality!", { lang: cfg.voice.lang, gender: cfg.voice.gender });   // inside the click: unlocks the voice on picky browsers
   spInit();
   paintJoin(); publish();
   whenPlayers(function () {
@@ -505,6 +518,15 @@ function applyBg() {
 }
 // Waiting room: our own festive music (no YouTube) whenever the TV is idle and there is no playlist.
 function ambient() {
+  if (SPT.on && started) {
+    var wantRadio = bgOn && !cfg.bg && SPT.mode !== "challenge" && (phase === "idle" || phase === "quiz" || phase === "rank");
+    if (wantRadio) spRadio(); else if (!(phase === "playing" && now && now.sp) && SPT.mode !== "challenge") spPauseRadio();
+    spVol();
+    if (T.sfx.loopKind()) T.sfx.stopLoop();
+    var hm0 = $("houseMix"); if (hm0) { hm0.style.display = cfg.bg ? "none" : ""; hm0.classList.toggle("off", !wantRadio); }
+    var bw0 = $("bgwrap"); if (bw0) bw0.style.display = cfg.bg ? "" : "none";
+    return;
+  }
   var house = started && phase === "idle" && bgOn && !cfg.bg && cfg.sfx !== false;
   if (house) T.sfx.startLoop("party"); else if (T.sfx.loopKind() === "party") T.sfx.stopLoop();
   var hm = $("houseMix"); if (hm) { hm.style.display = cfg.bg ? "none" : ""; hm.classList.toggle("off", !house); }
@@ -512,7 +534,47 @@ function ambient() {
 }
 
 /* ---------- Spotify (music mode, host's Premium) ---------- */
-var SPT = { on: false, device: null, devName: "", devices: [], sdk: false, me: "", poll: null, started: 0, at: 0, pos: 0, err: "" };
+var SPT = { on: false, device: null, devName: "", devices: [], sdk: false, me: "", poll: null, started: 0, at: 0, pos: 0, err: "", mode: null, busy: false, vol: 80, radioT: "" };
+var RADIO = { k: T.store("radioK") || "mix", list: [], at: 0 };
+function radioQueries() {
+  if (RADIO.k === "mix") return ["year:1980-1989", "year:1990-1999", "genre:funk", "genre:\"spanish pop\"", "year:2024-2026", "genre:disco"];
+  var c = T.SPCATS.filter(function (x) { return x.k === RADIO.k; })[0]; return c ? c.q : ["year:1980-1999"];
+}
+// Party radio: Spotify music under the waiting room and the quiz (replaces the old synthesised loops).
+function spRadio() {
+  if (SPT.mode === "radio" || SPT.busy) return;
+  SPT.busy = true;
+  (RADIO.list.length && Date.now() - RADIO.at < 3600e3 ? Promise.resolve(RADIO.list) : T.spotify.mix(radioQueries(), 1).then(function (l) { RADIO.list = l; RADIO.at = Date.now(); return l; }))
+    .then(function (list) {
+      if (!list.length) throw new Error("radio vacía");
+      var uris = list.map(function (x) { return x.uri; });
+      var k = Math.floor(Math.random() * uris.length); uris = uris.slice(k).concat(uris.slice(0, k));
+      return (SPT.device ? Promise.resolve() : spDevices()).then(function () { return T.spotify.playList(uris, SPT.device); });
+    }).then(function () { SPT.busy = false; SPT.mode = "radio"; spVol(); setTimeout(radioNow, 2500); },
+      function (e) { SPT.busy = false; if (e && e.status === 404) notice("Abre Spotify en un altavoz o móvil y elígelo en el móvil del anfitrión (Fiesta → Spotify).", 8000); });
+}
+function radioNow() {
+  if (SPT.mode !== "radio") return;
+  T.spotify.state().then(function (st) {
+    if (st && st.item) { SPT.radioT = st.item.name + " · " + (st.item.artists || []).map(function (a) { return a.name; }).join(", "); var im = st.item.album && st.item.album.images; SPT.radioImg = im && im.length ? im[im.length > 1 ? 1 : 0].url : ""; paintHouse(); publish(); }
+  }).catch(function () {});
+}
+setInterval(radioNow, 20000);
+function paintHouse() {
+  if (!SPT.on || cfg.bg) return;
+  $("bgTitle").textContent = SPT.radioT || "Radio de la fiesta";
+  var hm = $("houseMix"); if (hm) { hm.style.backgroundImage = SPT.radioImg ? "linear-gradient(135deg,rgba(255,61,127,.55),rgba(138,43,214,.55)),url('" + SPT.radioImg + "')" : ""; hm.style.backgroundSize = "cover"; hm.style.backgroundPosition = "center"; }
+}
+function spPauseRadio() { if (SPT.mode !== "radio") return; SPT.mode = null; T.spotify.pause(SPT.device); }
+var volT = null, dipT = null;
+// a moderator sound effect briefly lowers Spotify so it cuts through
+function sfxDip() { if (!SPT.on || !SPT.device) return; SPT.dip = true; SPT.vol = -1; T.spotify.setVolume(35, SPT.device); clearTimeout(dipT); dipT = setTimeout(function () { SPT.dip = false; SPT.vol = -1; spVol(); }, 2600); }
+function spVol() {
+  if (!SPT.on || !SPT.device || SPT.dip) return;
+  var want = speaking ? 30 : SPT.mode === "radio" ? (phase === "idle" ? 75 : 45) : 100;
+  if (want === SPT.vol) return; SPT.vol = want;
+  clearTimeout(volT); volT = setTimeout(function () { T.spotify.setVolume(want, SPT.device); }, 150);
+}
 function paintSpBtn() {
   var b = $("sSp"); if (!b) return;
   var can = !!(cfg.spClient || T.SPOTIFY_CLIENT);
@@ -526,7 +588,7 @@ $("sSp").addEventListener("click", function () {
 function spInit() {
   if (!T.spotify.connected()) { SPT.on = false; return; }
   T.spotify.profile().then(function (m) {
-    SPT.me = m.display_name || m.id || ""; SPT.on = true; paintSpBtn();
+    SPT.me = m.display_name || m.id || ""; SPT.on = true; paintSpBtn(); T.sfx.stopLoop();
     if (m.product && m.product !== "premium") notice("Spotify necesita Premium para sonar en la fiesta.", 8000);
     return spDevices();
   }).then(function () {
@@ -534,6 +596,7 @@ function spInit() {
     return T.spotify.sdk("PARTIENDO LA TARIMA · " + cfg.name).then(function (id) {
       SPT.sdk = true; SPT.device = id; SPT.devName = "Esta tele"; publish();
     }, function () { /* this browser can't play Spotify itself: use a Spotify Connect device */ });
+  }).then(function () { if (SPT.on) { SPT.mode = null; ambient(); } 
   }).catch(function (e) { SPT.on = false; SPT.err = e.message; if (e.message !== "nologin") notice("Spotify: " + e.message, 6000); publish(); });
 }
 function spDevices() {
@@ -547,18 +610,38 @@ function spDevices() {
   });
 }
 setInterval(function () { if (started && SPT.on && !(phase === "playing" && now && now.sp)) spDevices().catch(function () {}); }, 30000);
+function spEnded() { SPT.mode = null; if (cfg.mode === "music") startNext(); else outro(); }
+function loadLyrics(entry) {
+  entry.lyrTried = true;
+  T.lyrics(entry.t, entry.a, entry.dur).then(function (l) { entry.lyr = l; if (now === entry && phase === "playing" && !l) $("lyrNext").textContent = "No he encontrado la letra. ¡A cantar de memoria!"; });
+}
+function paintLyrics() {
+  if (!(phase === "playing" && now && now.sp && cfg.mode !== "music" && now.lyr)) return;
+  var t = SPT.pos + (SPT.paused ? 0 : (Date.now() - SPT.at) / 1000) + 0.25, L = now.lyr, i = -1;
+  for (var k = 0; k < L.length; k++) { if (L[k].t <= t) i = k; else break; }
+  if (i === paintLyrics.i && now === paintLyrics.n) return;
+  paintLyrics.i = i; paintLyrics.n = now;
+  var cur = i >= 0 ? L[i].x : "♪", el = $("lyrNow");
+  $("lyrPrev").textContent = i > 0 ? L[i - 1].x : "";
+  el.textContent = cur || "♪"; el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
+  $("lyrNext").textContent = L[i + 1] ? L[i + 1].x : "";
+}
+setInterval(paintLyrics, 200);
 function spStop(keepPlaying) {
   clearInterval(SPT.poll); SPT.poll = null;
-  $("spArt").classList.remove("on");
-  if (SPT.playing) { SPT.playing = false; if (!keepPlaying) T.spotify.pause(SPT.device); }
+  $("spArt").classList.remove("on"); $("lyr").classList.remove("on");
+  if (SPT.playing) { SPT.playing = false; SPT.mode = null; if (!keepPlaying) T.spotify.pause(SPT.device); }
 }
 function spPlayNow() {
   phase = "playing"; paintPlay(); layer("L-play");
   try { mainP.stopVideo(); } catch (e) {}
   $("spT").textContent = now.t; $("spA").textContent = now.a || "";
   $("spImg").src = now.big || now.img || ""; $("spBg").style.backgroundImage = now.big || now.img ? "url('" + (now.big || now.img) + "')" : "";
-  $("spArt").classList.add("on");
-  var uri = now.sp, my = now;
+  var show = cfg.mode !== "music", my = now;
+  $("spArt").classList.toggle("on", !show); $("lyr").classList.toggle("on", show);
+  if (show) { $("lyrTag").textContent = my.kv ? "● Spotify · versión karaoke" : "● Spotify · con voz guía"; $("lyrPrev").textContent = ""; $("lyrNow").textContent = "🎤 " + my.t; $("lyrNext").textContent = my.lyr ? "" : "Cargando la letra…"; if (!my.lyr && !my.lyrTried) loadLyrics(my); }
+  var uri = show && my.kv ? my.kv : now.sp;
+  SPT.mode = "track";
   function fail(e) {
     if (now !== my) return;
     var why = e && e.status === 404 ? "No hay ningún altavoz de Spotify activo. Abre Spotify en el móvil o en un altavoz y elígelo en el móvil del anfitrión." : e && e.status === 403 ? "Spotify no deja reproducir: hace falta Premium." : "Spotify: " + (e && e.message);
@@ -576,11 +659,11 @@ function spPlayNow() {
         var since = Date.now() - SPT.started;
         if (st && st.item && st.item.uri === uri) {
           SPT.pos = st.progress_ms / 1000; SPT.at = Date.now(); SPT.paused = !st.is_playing;
-          if (!st.is_playing && since > 6000 && (st.progress_ms < 1500 || st.progress_ms > st.item.duration_ms - 2500)) { clearInterval(SPT.poll); SPT.playing = false; startNext(); }
-        } else if (since > 6000) { clearInterval(SPT.poll); startNext(); }   // track over (Spotify moved on or stopped)
+          if (!st.is_playing && since > 6000 && (st.progress_ms < 1500 || st.progress_ms > st.item.duration_ms - 2500)) { clearInterval(SPT.poll); SPT.playing = false; spEnded(); }
+        } else if (since > 6000) { clearInterval(SPT.poll); SPT.playing = false; spEnded(); }   // track over (Spotify moved on or stopped)
       }).catch(function () {});
-    }, 3000);
-    publish();
+    }, cfg.mode === "music" ? 3000 : 1500);
+    spVol(); publish();
   }, function (e) {
     if (e && e.status === 404 && !SPT.retried) { SPT.retried = true; SPT.device = null; spDevices().then(function () { SPT.retried = false; if (now === my) spPlayNow(); }, fail); return; }
     SPT.retried = false; fail(e);
@@ -611,7 +694,7 @@ function startNext() {
   if (!n) { toIdle(); return; }
   now = n; now.idx = 0; now.claps = 0;
   P.history = (P.history || []).concat([now.songId]).slice(-300);
-  if (cfg.mode === "music") { phase = "playing"; applyBg(); playNow(); saveParty(); return; }
+  if (cfg.mode === "music") { phase = "playing"; applyBg(); playNow(); saveParty(); P.dj = (P.dj || 0) + 1; if (now.singer && (P.dj % 3 === 1 || Math.random() < 0.25)) later(function () { if (now && phase === "playing") say(T.line(cfg.voice.lang, "dj", { n: now.singer, s: now.t })); }, 2500); return; }
   P.qn = (P.qn || 0) + 1; P.cn = (P.cn || 0) + 1;
   var skipQ = P.noQuiz; P.noQuiz = false;
   var forced = P.nextCh; P.nextCh = null;
@@ -646,7 +729,7 @@ function intro() {
 function playNow() {
   if (!now) return;
   if (now.sp) { spPlayNow(); return; }
-  $("spArt").classList.remove("on");
+  $("spArt").classList.remove("on"); $("lyr").classList.remove("on");
   phase = "playing"; paintPlay(); layer("L-play");
   if (!now.idx) now.ids.sort(function (a, b) { return (adSet[a] ? 1 : 0) - (adSet[b] ? 1 : 0); });
   mainP.loadVideoById(now.ids[now.idx || 0]);
@@ -720,7 +803,7 @@ function publish() {
     ts: Date.now(), name: cfg.name, code: cfg.code, now: n, queue: Q().map(pick), mode: cfg.mode, autoOn: !!cfg.autoOn, catAt: CAT.at || 0,
     guests: P.guests.map(function (g) { return { id: g.id, name: g.name, host: g.host, sung: g.sung || 0, pts: g.pts || 0 }; }),
     quiz: QZ ? quizPublic() : null, ch: CH ? chPublic() : null, chEvery: cfg.chEvery, quizEvery: cfg.quiz, voice: { on: cfg.voice.on, where: cfg.voice.where, lang: cfg.voice.lang, gender: cfg.voice.gender },
-    canSearch: !!cfg.key || (SPT.on && cfg.mode === "music"), spotify: SPT.on && cfg.mode === "music" ? { me: SPT.me, dev: SPT.devName, devId: SPT.device, devices: SPT.devices.map(function (d) { return { id: d.id, name: d.name, type: d.type }; }).concat(SPT.sdk && !SPT.devices.some(function (d) { return d.id === SPT.device; }) ? [{ id: SPT.device, name: "Esta tele", type: "TV" }] : []) } : null, limit: cfg.mode === "music" ? cfg.musicLimit : cfg.limit, ads: now && now.ids ? !!adSet[now.ids[now.idx || 0]] : false, intro: cfg.intro, bg: { set: !!cfg.bg, on: bgOn, title: cfg.bg ? bgTitle : "Música de la casa", house: !cfg.bg }
+    canSearch: !!cfg.key || SPT.on, radio: RADIO.k, spotify: SPT.on ? { me: SPT.me, dev: SPT.devName, devId: SPT.device, devices: SPT.devices.map(function (d) { return { id: d.id, name: d.name, type: d.type }; }).concat(SPT.sdk && !SPT.devices.some(function (d) { return d.id === SPT.device; }) ? [{ id: SPT.device, name: "Esta tele", type: "TV" }] : []) } : null, limit: cfg.mode === "music" ? cfg.musicLimit : cfg.limit, ads: now && now.ids ? !!adSet[now.ids[now.idx || 0]] : false, intro: cfg.intro, bg: { set: !!cfg.bg, on: bgOn, title: cfg.bg ? bgTitle : SPT.on ? (SPT.radioT || "Radio de la fiesta") : "Música de la casa", img: SPT.on && !cfg.bg ? SPT.radioImg || "" : "", house: !cfg.bg }
   }, true);
 }
 setInterval(publish, 5000);
@@ -744,11 +827,17 @@ function onCmd(topic, cmd) {
       var entry = { qid: T.rand(8), singer: name, singerId: cmd.cid, kind: cfg.mode };
       if (cmd.songId && cfg.mode === "music") { reply(cmd, { ok: false, err: "musiconly" }); return; }
       if (cmd.sp) {
-        if (cfg.mode !== "music" || !SPT.on || !/^spotify:track:[A-Za-z0-9]{10,30}$/.test(cmd.sp)) { reply(cmd, { ok: false, err: "badurl" }); return; }
+        if (!SPT.on || !/^spotify:track:[A-Za-z0-9]{10,30}$/.test(cmd.sp)) { reply(cmd, { ok: false, err: "badurl" }); return; }
         entry.songId = "sp:" + cmd.sp; entry.sp = cmd.sp; entry.ids = [];
         entry.t = String(cmd.title || "").slice(0, 80) || "Canción de Spotify"; entry.a = String(cmd.ch || "").slice(0, 80);
         entry.img = /^https:\/\/i\.scdn\.co\//.test(cmd.img || "") ? cmd.img : ""; entry.big = /^https:\/\/i\.scdn\.co\//.test(cmd.big || "") ? cmd.big : entry.img;
         entry.dur = Math.max(0, Math.min(3600, +cmd.dur || 0));
+        if (cfg.mode !== "music") {
+          (function (en) {
+            T.spotify.karaokeOf(en.t, en.a, en.dur).then(function (kv) { if (kv) en.kv = kv.uri; });
+            loadLyrics(en);
+          })(entry);
+        }
       } else if (cmd.songId) {
         var s = T.CATALOG.filter(function (x) { return x.id === cmd.songId; })[0];
         if (!s) { reply(cmd, { ok: false, err: "badurl" }); return; }
@@ -798,12 +887,18 @@ function onCmd(topic, cmd) {
       SPT.device = dv.id; SPT.devName = dv.name; reply(cmd, { ok: true });
       if (phase === "playing" && now && now.sp) spPlayNow();
       break;
+    case "radio":
+      if (!host) { reply(cmd, { ok: false, err: "host" }); return; }
+      RADIO.k = String(cmd.k || "mix"); RADIO.list = []; T.store("radioK", RADIO.k); reply(cmd, { ok: true });
+      if (SPT.mode === "radio") { SPT.mode = null; ambient(); }
+      break;
     case "sprefresh":
       changed = false; spDevices().then(function () { reply(cmd, { ok: true }); }, function (e) { reply(cmd, { ok: false, msg: e.message }); }); break;
     case "bg":
       if (!host) { reply(cmd, { ok: false, err: "host" }); return; }
       if (cmd.action === "set") { if (!bgLoad(cmd.url)) { reply(cmd, { ok: false, err: "badurl" }); return; } }
       else if (cmd.action === "toggle") { bgOn = !bgOn; applyBg(); }
+      else if (cmd.action === "next" && SPT.mode === "radio") { T.spotify.api("POST", "/me/player/next" + (SPT.device ? "?device_id=" + SPT.device : "")).then(function () { setTimeout(radioNow, 1500); }, function () {}); }
       else if (cmd.action === "next") { try { bgP.nextVideo(); } catch (e) {} }
       reply(cmd, { ok: true }); break;
     case "clap":
@@ -836,14 +931,32 @@ function onCmd(topic, cmd) {
     case "mod": {
       if (!host) { reply(cmd, { ok: false, err: "host" }); return; }
       var act = cmd.action;
-      if (act === "sfx" && T.sfx[cmd.name] && T.sfx.NAMES[cmd.name]) { if (cmd.name === "applause") T.sfx.applause(4, true); else T.sfx[cmd.name](); if (cmd.name === "applause") { for (var ci = 0; ci < 8; ci++) setTimeout(clapFx, ci * 120); } }
+      var fx = cmd.fx || cmd.name;
+      if (act === "sfx" && T.sfx[fx] && T.sfx.NAMES[fx]) { sfxDip(); if (fx === "applause") T.sfx.applause(4, true); else T.sfx[fx](); if (fx === "applause") { for (var ci = 0; ci < 8; ci++) setTimeout(clapFx, ci * 120); } }
       else if (act === "msg") { var txt = String(cmd.text || "").slice(0, 140); if (txt) { shout(txt, cmd.from); if (cmd.speak) say(txt); } }
-      else if (act === "quiznow") { if (cfg.mode !== "karaoke") { reply(cmd, { ok: false, err: "musicmode" }); return; } if (phase === "idle") { now = null; runQuiz(function () { P.noQuiz = true; if (Q().length) startNext(); else toIdle(); }); } else P.qn = 99; }
-      else if (act === "jury") { var target = now && P.guests.filter(function (x) { return x.id === now.singerId; })[0]; if (!target) { reply(cmd, { ok: false, err: "nosinger" }); return; } var jp = Math.max(-1000, Math.min(1000, +cmd.pts || 0)); target.pts = (target.pts || 0) + jp; shout((jp >= 0 ? "+" : "") + jp + " del jurado para " + target.name, "⭐ Jurado"); if (jp > 0) T.sfx.fanfare(); else T.sfx.trombone(); }
+      else if (act === "quiznow") {
+        if (cfg.mode !== "karaoke") { reply(cmd, { ok: false, err: "musicmode" }); return; }
+        var cq = cmd.qid ? myQs().filter(function (x) { return x.id === cmd.qid; })[0] : null;
+        if (phase === "idle") { now = null; runQuiz(function () { P.noQuiz = true; if (Q().length) startNext(); else toIdle(); }, cq ? customQuiz(cq) : undefined); }
+        else { P.qn = 99; if (cq) P.nextQ = cq.id; reply(cmd, { ok: true, later: true }); break; }
+      }
+      else if (act === "custom") { reply(cmd, { ok: true, qs: myQs().map(function (x) { return { id: x.id, q: x.q, o: x.o, src: x.src }; }), chs: myChs().map(function (x) { return { id: x.id, t: x.t, d: x.d, who: x.who, vibe: x.vibe, dur: x.dur, src: x.src }; }), pr: Object.keys(T.PRUEBAS).map(function (k) { return { k: k, e: T.PRUEBAS[k].e, t: T.PRUEBAS[k].t, who: T.PRUEBAS[k].who }; }), vibes: Object.keys(T.VIBES) }); return; }
+      else if (act === "addq") {
+        var qo = (cmd.o || []).map(function (x) { return String(x || "").trim().slice(0, 80); }).filter(Boolean).slice(0, 4), qq = String(cmd.q || "").trim().slice(0, 160);
+        if (!qq || qo.length < 2) { reply(cmd, { ok: false, err: "bad" }); return; }
+        P.myQs = (P.myQs || []).concat([{ id: T.rand(6), q: qq, o: qo }]).slice(-60); saveParty();
+      }
+      else if (act === "addch") {
+        var ct = String(cmd.t || "").trim().slice(0, 60); if (!ct) { reply(cmd, { ok: false, err: "bad" }); return; }
+        P.myChs = (P.myChs || []).concat([{ id: T.rand(6), t: ct, d: String(cmd.d || "").trim().slice(0, 200), who: [0, 1, 2].indexOf(+cmd.who) >= 0 ? +cmd.who : 2, vibe: T.VIBES[cmd.vibe] ? cmd.vibe : "", dur: Math.max(15, Math.min(120, +cmd.dur || 40)) }]).slice(-40); saveParty();
+      }
+      else if (act === "delq") { P.myQs = (P.myQs || []).filter(function (x) { return x.id !== cmd.id; }); saveParty(); }
+      else if (act === "delch") { P.myChs = (P.myChs || []).filter(function (x) { return x.id !== cmd.id; }); saveParty(); }
+      else if (act === "jury") { var target = CH && CH.pair && CH.pair.length === 1 ? CH.pair[0] : now && P.guests.filter(function (x) { return x.id === now.singerId; })[0]; if (!target) { reply(cmd, { ok: false, err: "nosinger" }); return; } var jp = Math.max(-1000, Math.min(1000, +cmd.pts || 0)); target.pts = (target.pts || 0) + jp; shout((jp >= 0 ? "+" : "") + jp + " del jurado para " + target.name, "⭐ Jurado"); if (jp > 0) T.sfx.fanfare(); else T.sfx.trombone(); }
       else if (act === "challenge") {
         if (cfg.mode !== "karaoke") { reply(cmd, { ok: false, err: "musicmode" }); return; }
-        if (P.guests.length < (cmd.kind === "guess" || cmd.kind === "freeze" ? 1 : 2)) { reply(cmd, { ok: false, err: "fewguests" }); return; }
-        var kind = CHALLENGES[cmd.kind] ? cmd.kind : pickChallenge();
+        var kind = cmd.kind && (CHALLENGES[cmd.kind] || prueba(cmd.kind)) ? cmd.kind : pickChallenge();
+        if (P.guests.length < chNeeds(kind)) { reply(cmd, { ok: false, err: "fewguests" }); return; }
         if (phase === "idle") { now = null; runChallenge(kind, function () { P.noQuiz = true; if (Q().length) startNext(); else toIdle(); }); }
         else { P.nextCh = kind; reply(cmd, { ok: true, later: true }); break; }
       }
@@ -886,11 +999,16 @@ function ytErr(e) {
   return "La búsqueda de YouTube ha fallado. Prueba otra vez o pega un enlace.";
 }
 function doSearch(cmd) {
-  if (cfg.mode === "music" && SPT.on) {
-    var qs = String(cmd.q || "").trim().slice(0, 80); if (!qs) { reply(cmd, { ok: true, items: [] }); return; }
-    var ks = "sp|" + T.norm(qs);
-    if (searchCache[ks]) { reply(cmd, { ok: true, items: searchCache[ks], src: "spotify" }); return; }
-    T.spotify.search(qs).then(function (items) { searchCache[ks] = items; reply(cmd, { ok: true, items: items, src: "spotify" }); },
+  if (SPT.on && cmd.src !== "yt") {
+    var qs = String(cmd.q || "").trim().slice(0, 80), kind = cmd.kind || "q";
+    if (!qs) { reply(cmd, { ok: true, items: [], artists: [] }); return; }
+    var ks = "sp|" + kind + "|" + T.norm(qs);
+    if (searchCache[ks] && Date.now() - searchCache[ks].at < 1800e3) { reply(cmd, { ok: true, items: searchCache[ks].items, artists: searchCache[ks].artists, src: "spotify" }); return; }
+    var job;
+    if (kind === "cat") { var cat = T.SPCATS.filter(function (x) { return x.k === qs; })[0]; job = cat ? T.spotify.mix(cat.q, 1).then(function (l) { return { tracks: l.slice(0, 30), artists: [] }; }) : Promise.resolve({ tracks: [], artists: [] }); }
+    else if (kind === "artist") job = T.spotify.mix(['artist:"' + qs.replace(/"/g, "") + '"'], 2).then(function (l) { return { tracks: l.slice(0, 20), artists: [] }; });
+    else job = T.spotify.searchAll(qs);
+    job.then(function (r) { searchCache[ks] = { items: r.tracks, artists: r.artists, at: Date.now() }; reply(cmd, { ok: true, items: r.tracks, artists: r.artists, src: "spotify" }); },
       function (e) { reply(cmd, { ok: false, err: "search", msg: "Spotify no responde: " + e.message }); });
     return;
   }
@@ -996,7 +1114,7 @@ function autoPick() {
   var entry = { qid: T.rand(8), singer: g.name, singerId: g.id, kind: "karaoke", auto: true, t: x.t, a: x.a || "",
     songId: x.songId || "yt:" + x.vid, ids: x.ids ? x.ids.slice() : [x.vid], titled: true };
   P.history = used.concat([x.songId || "yt:" + x.vid]).slice(-300);
-  Q().push(entry); notice("🎲 Auto karaoke: le toca a " + g.name, 5000);
+  Q().push(entry); notice("🎲 Sorteo: le toca a " + g.name, 5000);
   if (phase === "idle") startNext(); else paintPlay();
   saveParty(); publish();
   return entry;
@@ -1017,9 +1135,11 @@ function quizPublic() {
 function runQuiz(done, preset) {
   var song = now || { t: "", a: (pickOne(P.history || [""]) || ""), singer: "" };
   if (!now) { var hs = (P.history || []).map(function (h) { var c = T.CATALOG.filter(function (x) { return x.id === h; })[0]; return c ? c.a : ""; }).filter(Boolean); song.a = hs.length ? pickOne(hs) : ""; }
+  if (!preset && P.nextQ) { var nq = myQs().filter(function (x) { return x.id === P.nextQ; })[0]; P.nextQ = null; if (nq) { preset = customQuiz(nq); P.asked = (P.asked || []).concat([preset.key]); } }
+  if (!preset) preset = pickCustomQ();
   var q = preset || T.quizFor(song, P.asked || []);
   if (!preset) P.asked = (P.asked || []).concat([q.key]).slice(-200);
-  QZ = { id: T.rand(6), q: q.q, o: q.o, c: q.c, about: q.about, vid: q.vid, ans: {}, res: {}, stage: "ask", ends: Date.now() + QSECS * 1000, done: done };
+  QZ = { id: T.rand(6), q: q.q, o: q.o, c: q.c, about: q.about, vid: q.vid, sp: q.sp, ans: {}, res: {}, stage: "ask", ends: Date.now() + QSECS * 1000, done: done };
   phase = "quiz"; applyBg();
   var L = $("L-quiz"); L.classList.remove("reveal");
   $("qzEyebrow").textContent = "🔥 Partiendo la Tarima · " + (q.title || (q.about ? "Pregunta sobre " + q.about : "Pregunta musical"));
@@ -1029,9 +1149,10 @@ function runQuiz(done, preset) {
   $("qzGrid").innerHTML = q.o.map(function (t, i) { return '<div class="qz-o c' + i + '" id="qo' + i + '"><b>' + QCOL[i] + "</b><span>" + esc(t) + '</span><span class="n" id="qn' + i + '"></span></div>'; }).join("");
   paintQuizCount();
   if (q.vid) { layer("L-quiz"); $("L-play").classList.add("on"); applyBg(); try { bgP.pauseVideo(); } catch (e) {} try { mainP.loadVideoById({ videoId: q.vid, startSeconds: 25 }); } catch (e) {} }
-  else { layer("L-quiz"); T.sfx.whoosh(); try { bgP.pauseVideo(); } catch (e) {} T.sfx.startLoop("circus"); }
+  else if (q.sp) { layer("L-quiz"); T.sfx.whoosh(); CHM = { sp: q.sp }; SPT.mode = "challenge"; SPT.vol = -1; T.spotify.play(q.sp, SPT.device, 45000).then(spVol, function () {}); }
+  else { layer("L-quiz"); T.sfx.whoosh(); try { bgP.pauseVideo(); } catch (e) {} if (!SPT.on) T.sfx.startLoop("circus"); }
   var lang = cfg.voice.lang;
-  say(q.vid ? T.line(lang, "guess") : T.line(lang, "quiz") + (T.speaksSpanish(lang) ? " " + q.q : ""));
+  say(q.vid || q.sp ? T.line(lang, "guess") : T.line(lang, "quiz") + (T.speaksSpanish(lang) ? " " + q.q : ""));
   for (var k = 1; k <= QSECS; k++) (function (k) { later(function () { $("qzTime").textContent = QSECS - k; if (QSECS - k <= 5 && QSECS - k > 0) T.sfx.tick(QSECS - k <= 2); }, k * 1000); })(k);
   $("qzTime").textContent = QSECS;
   later(revealQuiz, QSECS * 1000 + 300);
@@ -1053,7 +1174,8 @@ function revealQuiz() {
   right.sort(function (a, b) { return a.t - b.t; });
   $("L-quiz").classList.add("reveal"); $("qo" + QZ.c).classList.add("ok");
   if (QZ.vid) { try { mainP.stopVideo(); } catch (e) {} }
-  counts.forEach(function (n, i) { $("qn" + i).textContent = n ? n + " 👤" : ""; });
+  if (QZ.sp) { chMusicStop(); ambient(); }
+  counts.forEach(function (n, i) { var el = $("qn" + i); if (el) el.textContent = n ? n + " 👤" : ""; });
   $("qzTime").textContent = "✓";
   if (right.length) T.sfx.ding(); else T.sfx.trombone();
   $("qzFoot").textContent = right.length ? "Han acertado: " + right.map(function (r) { return r.g.name; }).join(", ") : "Nadie ha acertado esta vez";
@@ -1106,29 +1228,98 @@ var CH = null, idleSince = Date.now();
 var DANCE = ["Macarena", "Aserejé", "Bomba", "Danza Kuduro", "Uptown Funk", "Y.M.C.A.", "Waka Waka", "Gasolina", "Despacito", "Stayin' Alive", "Dancing Queen", "Fiesta", "Rasputin", "Suavemente", "La bicicleta", "Vivir mi vida", "Conga", "La vida es un carnaval", "Livin' la vida loca", "Mi gente", "Happy", "Don't Start Now", "Levitating", "Bailando", "Hips Don't Lie", "Pa Madrid", "Borriquito", "Me colé en una fiesta", "Sex Bomb", "Celebration"];
 var DUOS = ["Corazón partío", "La bicicleta", "Despacito", "Shallow", "Aserejé", "La tortura", "Mamma Mia", "Bailar pegados", "Hasta que me olvides", "Tusa", "Felices los 4", "Échame la culpa", "Me colé en una fiesta", "Sin documentos", "Devuélveme a mi chica", "Waka Waka"];
 var CHALLENGES = { dance: "Duelo de baile", freeze: "Congelados", guess: "Adivina la canción", duo: "Dúo sorpresa" };
+// dance and freeze run through the same engine as the reality pruebas
+var BASEP = {
+  dance: { e: "💃", t: "Duelo de baile", who: 2, dur: 45, vibe: "fiesta", end: "vote", d: "{n} contra {m}. 45 segundos bailando y luego votáis en el móvil. ¡500 puntos para quien gane!" },
+  freeze: { e: "🧊", t: "Congelados", who: 0, dur: 50, vibe: "fiesta", end: "freeze", pauses: "¡CONGELADOS! 🧊", d: "Todo el mundo a bailar. Cuando pare la música, ¡quietos como estatuas! Quien se mueva, fuera." }
+};
 function catSong(titles) {
   var pool = T.CATALOG.filter(function (c) { return titles.indexOf(c.t) >= 0; });
   return pool.length ? pickOne(pool) : pickOne(T.CATALOG);
 }
-function pickChallenge() { var k = ["dance", "dance", "guess", "freeze", "duo"]; return pickOne(P.guests.length >= 2 ? k : ["guess", "freeze"]); }
+/* custom questions and pruebas: the admin's (saved with the party config) plus the ones the moderator adds live */
+function myQs() { return (cfg.myQs || []).map(function (x) { x.src = "admin"; return x; }).concat((P.myQs || []).map(function (x) { x.src = "mod"; return x; })).filter(function (x) { return x && x.id && x.q && x.o && x.o.length >= 2; }); }
+function myChs() { return (cfg.myChs || []).map(function (x) { x.src = "admin"; return x; }).concat((P.myChs || []).map(function (x) { x.src = "mod"; return x; })).filter(function (x) { return x && x.id && x.t; }); }
+function customQuiz(x) {
+  var opts = x.o.slice(0, 4), order = opts.map(function (_, i) { return i; }).sort(function () { return Math.random() - 0.5; });
+  return { key: "my:" + x.id, q: x.q, o: order.map(function (i) { return opts[i]; }), c: order.indexOf(0), about: "", title: "🎂 Pregunta de la casa" };
+}
+function pickCustomQ() {
+  var asked = P.asked || [], pool = myQs().filter(function (x) { return asked.indexOf("my:" + x.id) < 0; });
+  if (!pool.length || Math.random() > 0.7) return null;
+  var x = pickOne(pool); P.asked = asked.concat(["my:" + x.id]).slice(-200);
+  return customQuiz(x);
+}
+function prueba(kind) {
+  if (BASEP[kind]) return BASEP[kind];
+  if (T.PRUEBAS[kind]) return T.PRUEBAS[kind];
+  if (String(kind).indexOf("c:") === 0) {
+    var c = myChs().filter(function (x) { return "c:" + x.id === kind; })[0];
+    if (c) return { e: "⭐", t: c.t, who: +c.who || 0, dur: Math.max(15, Math.min(120, +c.dur || 40)), vibe: c.vibe || "", end: (+c.who === 2 ? "vote" : "clap"), d: c.d || "", v: (c.t + ". " + (c.d || "")) };
+  }
+  return null;
+}
+function chTitle(kind) { var p = prueba(kind); return CHALLENGES[kind] || (p && p.t) || "Prueba"; }
+function chNeeds(kind) { if (kind === "guess") return 1; if (kind === "duo") return 2; var p = prueba(kind); return p ? Math.max(1, p.who) : 2; }
+function pickChallenge() {
+  var n = P.guests.length, k = ["dance", "guess", "freeze"];
+  if (n >= 2) k.push("duo");
+  Object.keys(T.PRUEBAS).forEach(function (x) { if (T.PRUEBAS[x].who <= n) k.push(x); });
+  myChs().forEach(function (c) { if ((+c.who || 0) <= n) { k.push("c:" + c.id); k.push("c:" + c.id); } });   // custom ones come up more often
+  var recent = P.chRecent || [], fresh = k.filter(function (x) { return recent.indexOf(x) < 0; });
+  var pick = pickOne(fresh.length ? fresh : k);
+  P.chRecent = recent.concat([pick]).slice(-8);
+  return pick;
+}
 function twoGuests() {
-  var load = function (g) { return (g.pts || 0) / 500 + (g.sung || 0) + Math.random() * 1.5; };
+  var load = function (g) { return (g.pts || 0) / 500 + (g.sung || 0) + (g.ch || 0) + Math.random() * 1.5; };
   return P.guests.slice().sort(function (a, b) { return load(a) - load(b); }).slice(0, 2);
 }
 function faceHtml(g) { return AV[g.id] ? '<img src="' + AV[g.id] + '" alt="">' : '<span class="f">' + esc(g.name.charAt(0).toUpperCase()) + "</span>"; }
-function chPublic() { var o = { id: CH.id, kind: CH.kind, title: CHALLENGES[CH.kind], stage: CH.stage, names: (CH.pair || []).map(function (g) { return g.name; }), ids: (CH.pair || []).map(function (g) { return g.id; }) }; if (CH.stage === "vote") { o.left = Math.max(0, CH.ends - Date.now()); o.n = Object.keys(CH.votes).length; } if (CH.win) o.win = CH.win; return o; }
+function chPublic() { var o = { id: CH.id, kind: CH.kind, title: chTitle(CH.kind), stage: CH.stage, names: (CH.pair || []).map(function (g) { return g.name; }), ids: (CH.pair || []).map(function (g) { return g.id; }) }; if (CH.stage === "vote") { o.left = Math.max(0, CH.ends - Date.now()); o.n = Object.keys(CH.votes).length; } if (CH.win) o.win = CH.win; return o; }
 function chal(html) { var c = $("chal"); c.innerHTML = html; c.classList.toggle("on", !!html); }
-function endChallenge(quiet) { if (!CH) return; CH = null; chal(""); T.sfx.stopLoop(); if (!quiet) clearTimers(); }
+function endChallenge(quiet) { if (!CH) return; CH = null; chal(""); chMusicStop(); T.sfx.stopLoop(); if (!quiet) clearTimers(); }
+
+/* challenge music: the ORIGINAL song (Spotify when connected, else a catalog video), never a karaoke track */
+var CHM = null;
+function allVibes() { var out = []; Object.keys(T.VIBES).forEach(function (k) { out = out.concat(T.VIBES[k]); }); return out; }
+function chMusic(vibe, onLabel) {
+  var me = CHM = { vibe: vibe };
+  var ytFallback = function () { if (CHM !== me) return; var tr = catSong(DANCE); me.yt = true; try { mainP.loadVideoById({ videoId: tr.ids[0], startSeconds: 20 }); } catch (e) {} if (onLabel) onLabel(tr.t + " · " + tr.a); };
+  if (!SPT.on) { ytFallback(); return; }
+  var song = pickOne(T.VIBES[vibe] || T.VIBES.fiesta);
+  SPT.mode = "challenge";
+  T.spotify.activate();
+  (SPT.device ? Promise.resolve() : spDevices()).then(function () { return T.spotify.findOne(song[0] + " " + song[1]); }).then(function (tr) {
+    if (CHM !== me) return;
+    if (!tr) throw new Error("notfound");
+    me.sp = tr.uri; if (onLabel) onLabel(tr.t + " · " + tr.a);
+    SPT.vol = -1;
+    return T.spotify.play(tr.uri, SPT.device, Math.min(40000, tr.dur * 1000 * 0.18)).then(spVol);
+  }).catch(function () { if (CHM === me) { SPT.mode = null; ytFallback(); } });
+}
+function chMusicPause() { if (!CHM) return; if (CHM.sp) T.spotify.pause(SPT.device); else { try { mainP.pauseVideo(); } catch (e) {} } }
+function chMusicResume() { if (!CHM) return; if (CHM.sp) T.spotify.resume(SPT.device); else { try { mainP.playVideo(); } catch (e) {} } }
+function chMusicStop() {
+  if (!CHM) return; var m = CHM; CHM = null;
+  if (m.sp) { if (SPT.mode === "challenge") { SPT.mode = null; T.spotify.pause(SPT.device); } }
+  else if (m.yt) { try { mainP.stopVideo(); } catch (e) {} }
+  if (SPT.mode === "challenge") SPT.mode = null;
+}
+
 function runChallenge(kind, done) {
   clearTimers(); hidePlayFix();
   try { mainP.stopVideo(); } catch (e) {}
   var lang = cfg.voice.lang;
   if (kind === "guess") {
-    var song = pickOne(T.CATALOG), others = T.CATALOG.filter(function (c) { return c.t !== song.t; });
-    var opts = [song.t + " · " + song.a]; while (opts.length < 4) { var o = pickOne(others); var lbl = o.t + " · " + o.a; if (opts.indexOf(lbl) < 0) opts.push(lbl); }
+    var pool = SPT.on ? allVibes().map(function (x) { return { t: x[0], a: x[1] }; }) : T.CATALOG;
+    var song = pickOne(pool), others = pool.filter(function (c) { return c.t !== song.t; });
+    var opts = [song.t + " · " + song.a]; while (opts.length < 4 && others.length) { var o = pickOne(others); var lbl = o.t + " · " + o.a; if (opts.indexOf(lbl) < 0) opts.push(lbl); }
     var order = [0, 1, 2, 3].sort(function () { return Math.random() - 0.5; });
     say(T.line(lang, "showman"));
-    later(function () { runQuiz(done, { key: "guess:" + song.id, q: "🎧 ¿Qué canción es?", o: order.map(function (i) { return opts[i]; }), c: order.indexOf(0), about: "", title: "Adivina la canción", vid: song.ids[0] }); }, 2500);
+    var go = function (sp) { runQuiz(done, { key: "guess:" + song.t, q: "🎧 ¿Qué canción es?", o: order.map(function (i) { return opts[i]; }), c: order.indexOf(0), about: "", title: "Adivina la canción", vid: sp ? null : song.ids[0], sp: sp || null }); };
+    if (SPT.on) { var t0 = Date.now(); T.spotify.findOne(song.t + " " + song.a).then(function (tr) { later(function () { if (tr) go(tr.uri); else { song = pickOne(T.CATALOG); go(null); } }, Math.max(0, 2500 - (Date.now() - t0))); }, function () { later(function () { done(); }, 1500); }); }
+    else later(function () { go(null); }, 2500);
     return;
   }
   if (kind === "duo") {
@@ -1137,44 +1328,62 @@ function runChallenge(kind, done) {
     if (now) Q().unshift(now);
     now = entry; now.idx = 0; now.claps = 0;
     phase = "challenge"; CH = { id: T.rand(6), kind: "duo", pair: pair, stage: "intro" }; layer("L-idle");
-    chal('<div class="full"><div><div class="eyebrow">🔥 Partiendo la Tarima · prueba</div><h2>🎤 ¡Dúo sorpresa!</h2><div class="vs"><div>' + faceHtml(pair[0]) + "<b>" + esc(pair[0].name) + '</b></div><div class="vsx">+</div><div>' + faceHtml(pair[1]) + "<b>" + esc(pair[1].name) + "</b></div></div><p>Os toca cantar juntos «" + esc(ds.t) + "». ¡Sin escapatoria!</p></div></div>");
+    chal('<div class="full"><div><div class="eyebrow">🔥 Partiendo la Tarima · Reality show</div><h2>🎤 ¡Dúo sorpresa!</h2><div class="vs"><div>' + faceHtml(pair[0]) + "<b>" + esc(pair[0].name) + '</b></div><div class="vsx">+</div><div>' + faceHtml(pair[1]) + "<b>" + esc(pair[1].name) + "</b></div></div><p>Os toca cantar juntos «" + esc(ds.t) + "». ¡Sin escapatoria!</p></div></div>");
     T.sfx.drumroll(1.5); later(function () { T.sfx.fanfare(); }, 1600);
     say(T.line(lang, "duo", { n: pair[0].name, m: pair[1].name, s: ds.t }));
     publish();
     later(function () { endChallenge(true); intro(); }, 7000);
     return;
   }
-  var pair2 = kind === "dance" ? twoGuests() : null, track = catSong(DANCE);
-  CH = { id: T.rand(6), kind: kind, pair: pair2, stage: "intro", votes: {}, track: track };
+  var p = prueba(kind); if (!p) { done(); return; }
+  runPrueba(kind, p, done);
+}
+function runPrueba(kind, p, done) {
+  var lang = cfg.voice.lang, DUR = p.dur || 40;
+  var pair = p.who === 2 ? twoGuests() : p.who === 1 ? twoGuests().slice(0, 1) : [];
+  pair.forEach(function (g) { g.ch = (g.ch || 0) + 1; });
+  var tx = T.pruebaText(p, pair[0] && pair[0].name, pair[1] && pair[1].name);
+  CH = { id: T.rand(6), kind: kind, pair: pair.length ? pair : null, stage: "intro", votes: {} };
   phase = "challenge"; layer("L-idle"); applyBg(); try { bgP.pauseVideo(); } catch (e) {}
-  var DUR = kind === "dance" ? 45 : 50;
-  var head = '<div class="full"><div><div class="eyebrow">🔥 Partiendo la Tarima · prueba</div>';
-  if (kind === "dance") chal(head + '<h2>💃 ¡Duelo de baile! 🕺</h2><div class="vs"><div>' + faceHtml(pair2[0]) + "<b>" + esc(pair2[0].name) + '</b></div><div class="vsx">VS</div><div>' + faceHtml(pair2[1]) + "<b>" + esc(pair2[1].name) + "</b></div></div><p>" + DUR + " segundos bailando. Luego votáis desde el móvil. ¡El ganador se lleva 500 puntos!</p></div></div>");
-  else chal(head + "<h2>🧊 ¡Congelados!</h2><p class='vsx' style='color:var(--text)'>Todo el mundo a bailar.</p><p>Cuando pare la música, ¡quietos como estatuas! Quien se mueva, fuera.</p></div></div>");
-  T.sfx.drumroll(2);
-  say(T.line(lang, "showman") + " " + (kind === "dance" ? T.line(lang, "dance", { n: pair2[0].name, m: pair2[1].name }) : T.line(lang, "freeze")));
+  var head = '<div class="full"><div><div class="eyebrow">🔥 Partiendo la Tarima · Reality show</div>';
+  var faces = pair.length === 2 ? '<div class="vs"><div>' + faceHtml(pair[0]) + "<b>" + esc(pair[0].name) + '</b></div><div class="vsx">VS</div><div>' + faceHtml(pair[1]) + "<b>" + esc(pair[1].name) + "</b></div></div>"
+    : pair.length === 1 ? '<div class="vs"><div>' + faceHtml(pair[0]) + "<b>" + esc(pair[0].name) + "</b></div></div>" : '<div class="vs"><div class="vsx">🙌 ¡Todo el mundo!</div></div>';
+  chal(head + "<h2>" + p.e + " ¡" + esc(p.t) + "!</h2>" + faces + "<p>" + esc(tx.d) + "</p><p>⏱ " + DUR + " segundos" + (p.end === "vote" && pair.length === 2 ? " · luego votáis en el móvil" : "") + "</p></div></div>");
+  T.sfx.drumroll(1.6); later(function () { T.sfx.sting(); }, 1700);
+  var intro = T.speaksSpanish(lang) ? (p.v ? tx.v : kind === "dance" ? T.line(lang, "dance", { n: pair[0].name, m: pair[1].name }) : kind === "freeze" ? T.line(lang, "freeze") : tx.d) : T.line(lang, "showman");
+  if (T.speaksSpanish(lang) && Math.random() < 0.5) intro = (pair.length === 2 ? T.line(lang, "pruebaPair", { n: pair[0].name, m: pair[1].name }) : pair.length === 1 ? T.line(lang, "pruebaSolo", { n: pair[0].name }) : T.line(lang, "pruebaAll")) + " " + intro;
+  say(intro);
   publish();
+  var cardPlay = function (label) {
+    chal('<div class="full"><div><div class="eyebrow">' + p.e + " " + esc(p.t) + "</div>" + faces + "<p>" + esc(tx.d) + '</p><div class="chT" id="chT">' + DUR + '</div><p id="chS">' + (label ? "🎵 " + esc(label) : p.vibe ? "🎵 …" : "🤫 Sin música: ¡todo vuestro!") + "</p></div></div>");
+  };
   later(function () {
-    CH.stage = "play"; layer("L-play"); $("L-play").classList.add("music");
-    $("pLabel").textContent = kind === "dance" ? "Duelo de baile" : "Congelados"; $("pName").textContent = kind === "dance" ? pair2[0].name + " vs " + pair2[1].name : "¡A bailar todos!"; $("pSong").textContent = track.t + " · " + track.a; $("pAv").style.display = "none"; $("pClaps").textContent = "";
-    $("pNext").innerHTML = "<small>Prueba</small><div class='it'><span>" + (kind === "dance" ? "Al acabar, votad en el móvil quién lo ha hecho mejor." : "Si para la música, ¡nadie se mueve!") + "</span></div>";
-    try { mainP.loadVideoById({ videoId: track.ids[0], startSeconds: 20 }); } catch (e) {}
-    chal('<div class="bar"><span>' + (kind === "dance" ? "💃 " + esc(pair2[0].name) + " vs " + esc(pair2[1].name) + " 🕺" : "🧊 Congelados") + '</span><span id="chT">' + DUR + "</span></div>");
-    var t0 = Date.now();
-    for (var k = 1; k <= DUR; k++) (function (k) { later(function () { var el = $("chT"); if (el) el.textContent = DUR - k; }, k * 1000); })(k);
-    if (kind === "freeze") [12, 25, 38].forEach(function (sec) {
-      var at = (sec + Math.random() * 4) * 1000;
-      later(function () { try { mainP.pauseVideo(); } catch (e) {} T.sfx.buzz(); var c = $("chal"); var f = document.createElement("div"); f.className = "freeze"; f.textContent = "¡CONGELADOS! 🧊"; c.appendChild(f); }, at);
-      later(function () { var f = document.querySelector("#chal .freeze"); if (f) f.remove(); try { mainP.playVideo(); } catch (e) {} }, at + 4000);
+    if (!CH) return;
+    CH.stage = "play"; T.sfx.crash();
+    cardPlay("");
+    if (p.vibe) chMusic(p.vibe, function (label) { var el = $("chS"); if (el) el.textContent = "🎵 " + label; });
+    for (var k = 1; k <= DUR; k++) (function (k) { later(function () { var el = $("chT"); if (el) el.textContent = DUR - k; if (DUR - k <= 3 && DUR - k > 0) T.sfx.tick(true); }, k * 1000); })(k);
+    if (p.pauses) [0.25, 0.5, 0.75].forEach(function (f) {
+      var at = (DUR * f + Math.random() * 3) * 1000;
+      later(function () { chMusicPause(); T.sfx.buzz(); var c = $("chal"); var fz = document.createElement("div"); fz.className = "freeze"; fz.textContent = typeof p.pauses === "string" ? p.pauses : "¡A SENTARSE! 🪑"; c.appendChild(fz); }, at);
+      later(function () { var fz = document.querySelector("#chal .freeze"); if (fz) fz.remove(); chMusicResume(); }, at + 4000);
     });
+    if (p.swap) later(function () { T.sfx.whoosh(); var c = $("chal"); var fz = document.createElement("div"); fz.className = "freeze"; fz.textContent = "🔄 ¡CAMBIO!"; c.appendChild(fz); later(function () { var f2 = document.querySelector("#chal .freeze"); if (f2) f2.remove(); }, 2000); say("¡Cambio! Ahora manda el otro."); }, DUR * 500);
     later(function () {
-      try { mainP.stopVideo(); } catch (e) {}
-      $("L-play").classList.remove("music");
-      if (kind === "freeze") { T.sfx.applause(4, true); chal(head + "<h2>🧊 ¡Fin de los congelados!</h2><p>El moderador puede dar puntos del jurado al último que quede en pie.</p></div></div>"); say(T.line(lang, "freezeEnd")); layer("L-idle"); publish(); later(function () { endChallenge(true); done(); }, 6000); return; }
-      startVote(head, done);
+      chMusicStop();
+      if (p.end === "vote" && pair.length === 2) { startVote(head, done); return; }
+      T.sfx.tada(); T.sfx.applause(4, true);
+      if (p.end === "freeze") { chal(head + "<h2>🧊 ¡Fin de los congelados!</h2><p>El moderador puede dar puntos del jurado al último que quede en pie.</p></div></div>"); say(T.line(lang, "freezeEnd")); }
+      else {
+        pair.forEach(function (g) { g.pts = (g.pts || 0) + 200; });
+        chal(head + "<h2>👏 ¡Tiempo!</h2>" + faces + "<p>" + (pair.length ? "+200 puntos para " + pair.map(function (g) { return esc(g.name); }).join(" y ") + " por echarle valor." : "¡Qué nivel, familia!") + "</p></div></div>");
+        say(T.line(lang, "pruebaEnd"));
+      }
+      CH.stage = "result"; layer("L-idle"); publish(); saveParty();
+      later(function () { endChallenge(true); done(); }, 6000);
     }, DUR * 1000);
     publish();
-  }, 7000);
+  }, 7500);
 }
 function startVote(head, done) {
   var pr = CH.pair; CH.stage = "vote"; CH.ends = Date.now() + 15000; layer("L-idle");
@@ -1218,7 +1427,7 @@ function say(text) {
   if (!speaking) nextSay();
 }
 function duck(on) {
-  T.sfx.duck(on);
+  T.sfx.duck(on); setTimeout(spVol, 0);
   try { if (mainP && mainP.setVolume) mainP.setVolume(on ? 35 : 100); } catch (e) {}
   try { if (bgP && bgP.setVolume) bgP.setVolume(on ? 20 : 60); } catch (e) {}
 }
@@ -1242,7 +1451,7 @@ function setMode(m) {
   QZ = null;
   try { mainP.stopVideo(); } catch (e) {}
   cfg.mode = m; saveCfg();
-  notice(m === "music" ? "Modo música activado" : "Modo karaoke activado", 4000);
+  notice(m === "music" ? "Modo música activado" : "Modo Reality show activado", 4000);
   if (Q().length) startNext(); else toIdle();
 }
 

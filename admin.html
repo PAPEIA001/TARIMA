@@ -8,15 +8,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=1795275490">
-<link rel="stylesheet" href="brand.css?v=1795275490">
-<script src="compat.js?v=1795275490"></script>
-<script src="vendor/mqtt.min.js?v=1795275490"></script>
+<link rel="stylesheet" href="app.css?v=1795284827">
+<link rel="stylesheet" href="brand.css?v=1795284827">
+<script src="compat.js?v=1795284827"></script>
+<script src="vendor/mqtt.min.js?v=1795284827"></script>
 <script>window.mqtt || document.write('<script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
 <script src="vendor/qrcode.min.js"></script>
-<script src="shared.js?v=1795275490"></script>
-<script src="sfx.js?v=1795275490"></script>
-<script src="trivia.js?v=1795275490"></script>
+<script src="shared.js?v=1795284827"></script>
+<script src="sfx.js?v=1795284827"></script>
+<script src="trivia.js?v=1795284827"></script>
 <style>
 /* Admin panel: same visual language as the guest app, a list of party cards and a full-page editor. */
 .adm{max-width:760px;margin:0 auto;min-height:100%;padding:calc(env(safe-area-inset-top) + 16px) 16px 60px;display:grid;gap:16px;align-content:start}
@@ -115,7 +115,7 @@ function voiceOf(p) { var v = p.voice || {}; return { on: v.on !== false, gender
 function publishConfig(p, photo) {
   return Promise.all([T.hash(p.code + ":" + T.pw(p.pw)), T.hash(p.code + ":" + T.pw(p.hostpw)), p.modpw ? T.hash(p.code + ":" + T.pw(p.modpw)) : Promise.resolve(null)]).then(function (h) {
     var cfg = { code: p.code, name: p.name, date: p.date || "", welcome: p.welcome || "", color: p.color || "rosa", intro: p.intro || "neon",
-      limit: p.limit !== false, musicLimit: p.musicLimit !== false, mode: p.mode || "karaoke", quiz: p.quiz === undefined ? 1 : p.quiz, chEvery: p.chEvery === undefined ? 3 : p.chEvery, voice: voiceOf(p), phrases: p.phrases || [], channels: A.index.channels || T.CHANNELS, bg: p.bg || "", key: A.index.key || "", photo: photo === undefined ? ((A.configs[p.code] || {}).photo || "") : photo,
+      limit: p.limit !== false, musicLimit: p.musicLimit !== false, mode: p.mode || "karaoke", quiz: p.quiz === undefined ? 1 : p.quiz, chEvery: p.chEvery === undefined ? 3 : p.chEvery, voice: voiceOf(p), phrases: p.phrases || [], myQs: p.myQs || [], myChs: p.myChs || [], channels: A.index.channels || T.CHANNELS, bg: p.bg || "", key: A.index.key || "", photo: photo === undefined ? ((A.configs[p.code] || {}).photo || "") : photo,
       pwHash: h[0], hostHash: h[1], modHash: h[2], sfx: p.sfx !== false, v: 2, ts: Date.now() };
     A.configs[p.code] = cfg;
     A.conn.publish(T.topics(p.code).config, cfg, true);
@@ -220,9 +220,9 @@ function vEdit() {
     '<div class="switch"><span>Karaoke: máximo 2 canciones por persona<small>Para que cante todo el mundo</small></span><button class="tog" type="button" role="switch" id="eLim" aria-checked="' + (d.limit !== false) + '" aria-label="Límite de canciones en karaoke"></button></div>' +
     '<div class="switch"><span>Música: máximo 2 canciones por móvil<small>Desactívalo para que cada uno pida las que quiera</small></span><button class="tog" type="button" role="switch" id="eMLim" aria-checked="' + (d.musicLimit !== false) + '" aria-label="Límite de canciones en modo música"></button></div>' +
     '<h2 style="margin:18px 0 4px;font-size:18px">🔥 Partiendo la Tarima</h2>' +
-    '<div class="field"><label for="eCh">Pruebas (duelo de baile, congelados, adivina la canción, dúo sorpresa)</label><select id="eCh">' + [[2, "Cada 2 canciones"], [3, "Cada 3 canciones"], [5, "Cada 5 canciones"], [0, "Solo cuando las lance el moderador"]].map(function (o) { return '<option value="' + o[0] + '"' + ((d.chEvery === undefined ? 3 : d.chEvery) === o[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + '</select><small class="muted">Si la tele lleva un rato parada, el presentador lanza una prueba para animar.</small></div>' +
+    '<div class="field"><label for="eCh">Pruebas del Reality show (baile, playback, teletienda, congelados…)</label><select id="eCh">' + [[2, "Cada 2 canciones"], [3, "Cada 3 canciones"], [5, "Cada 5 canciones"], [0, "Solo cuando las lance el moderador"]].map(function (o) { return '<option value="' + o[0] + '"' + ((d.chEvery === undefined ? 3 : d.chEvery) === o[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + '</select><small class="muted">Si la tele lleva un rato parada, el presentador lanza una prueba para animar.</small></div>' +
     '<div class="field"><label for="eQuiz">Pregunta tipo concurso antes de…</label><select id="eQuiz">' + [[1, "Cada canción"], [2, "Cada 2 canciones"], [3, "Cada 3 canciones"], [0, "Sin preguntas"]].map(function (o) { return '<option value="' + o[0] + '"' + ((d.quiz === undefined ? 1 : d.quiz) === o[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + '</select><small class="muted">Solo en modo karaoke. 20 segundos para responder con botones A, B, C y D en el móvil. Preguntas sobre ' + T.quizArtists + ' artistas y de cultura musical.</small></div>' +
-    '<h2 style="margin:18px 0 4px;font-size:18px">Show</h2>' +
+    '<h2 style="margin:18px 0 4px;font-size:18px">Reality show</h2>' +
     '<div class="switch"><span>Efectos de sonido<small>Sintonía de entrada, redoble, aplausos al acabar, bocina y música de sala de espera</small></span><button class="tog" type="button" role="switch" id="eSfx" aria-checked="' + (d.sfx !== false) + '" aria-label="Efectos de sonido"></button></div>' +
     '<div class="field"><label for="eMod">Clave de moderador (opcional)</label><input id="eMod" maxlength="30" value="' + esc(d.modpw || "") + '" autocomplete="off" placeholder="Si la dejas vacía, sirve la de anfitrión"><small class="muted">Para el panel de moderador: aplausos, mensajes en la tele, jurado y reiniciar.</small></div>' +
     '<h2 style="margin:18px 0 4px;font-size:18px">Presentador con voz</h2>' +
@@ -231,6 +231,8 @@ function vEdit() {
     '<div class="field"><label for="eLang">Acento o idioma</label><select id="eLang">' + T.VOICE_LANGS.map(function (l) { return '<option value="' + l[0] + '"' + ((vo.lang || "es-ES") === l[0] ? " selected" : "") + ">" + l[1] + "</option>"; }).join("") + "</select></div></div>" +
     '<div class="field"><label for="eWhere">Dónde suena la voz</label><select id="eWhere"><option value="tv"' + (vo.where !== "phone" ? " selected" : "") + '>En la tele</option><option value="phone"' + (vo.where === "phone" ? " selected" : "") + '>En el móvil del anfitrión (si la tele no tiene voz)</option></select><small class="muted">En el móvil, activa «Voz del presentador en este móvil» en la pestaña Fiesta.</small></div>' +
     '<div class="field"><label for="ePhr">Tus frases para el presentador</label><textarea id="ePhr" rows="5" maxlength="2000" placeholder="¡Que no decaiga, {nombre}!&#10;¡Barra libre de canciones en {fiesta}!&#10;¿Quién se atreve con un dúo?">' + esc((d.phrases || []).join("\n")) + '</textarea><small class="muted">Una por línea. {nombre} pone el nombre de un invitado y {fiesta} el de la fiesta. Las dice entre canciones y cuando la tele está libre.</small></div>' +
+    '<div class="field"><label for="eMyQ">🎂 Preguntas sobre quien celebra la fiesta</label><textarea id="eMyQ" rows="5" maxlength="6000" placeholder="¿Cuál fue su primer trabajo? | Socorrista | Camarero | Payaso | Repartidor&#10;¿Qué le da más miedo? | Las palomas | Las arañas | Volar">' + esc((d.myQs || []).map(function (x) { return [x.q].concat(x.o).join(" | "); }).join("\n")) + '</textarea><small class="muted">Una por línea: pregunta | respuesta correcta | falsas (de 1 a 3). Salen mezcladas en el concurso y el moderador puede lanzarlas.</small></div>' +
+    '<div class="field"><label for="eMyC">🔥 Pruebas de la casa</label><textarea id="eMyC" rows="4" maxlength="4000" placeholder="Baila como el cumpleañero | {n} y {m} imitan su baile estrella | pareja&#10;Brindis épico | {n} hace un brindis de 30 segundos | 1">' + esc((d.myChs || []).map(function (x) { return [x.t, x.d || "", +x.who === 0 ? "todos" : +x.who === 1 ? "1" : "pareja"].join(" | "); }).join("\n")) + '</textarea><small class="muted">Una por línea: título | qué hay que hacer | pareja, 1 o todos. {n} y {m} ponen los nombres. Suenan con música de fiesta original.</small></div>' +
     '<button class="btn small sec" type="button" id="eTry" style="justify-self:start">▶︎ Probar la voz aquí</button>' +
     '<button class="btn" type="submit" style="margin-top:14px">' + (p ? "Guardar cambios" : "Crear fiesta") + "</button>" +
     (p ? '<button class="btn danger" type="button" id="eDel" style="margin-top:8px">Eliminar fiesta</button><p class="err" id="delMsg"></p>' : "") + "</form>";
@@ -282,6 +284,9 @@ function vEdit() {
     if (mp && T.pw(mp) === T.pw(pw)) { toast("La clave de moderador tiene que ser distinta de la de invitados.", true); return; }
     rec.modpw = mp;
     rec.voice = { on: vtog.getAttribute("aria-checked") === "true", gender: document.getElementById("eGender").value, lang: document.getElementById("eLang").value, where: document.getElementById("eWhere").value };
+    var oldCh = {}; (rec.myChs || []).forEach(function (x) { oldCh[x.t] = x; });
+    rec.myQs = document.getElementById("eMyQ").value.split("\n").map(function (l, i) { var f = l.split("|").map(function (x) { return x.trim(); }).filter(Boolean); return f.length >= 3 ? { id: "a" + i + T.rand(3), q: f[0].slice(0, 160), o: f.slice(1, 5).map(function (x) { return x.slice(0, 80); }) } : null; }).filter(Boolean).slice(0, 60);
+    rec.myChs = document.getElementById("eMyC").value.split("\n").map(function (l, i) { var f = l.split("|").map(function (x) { return x.trim(); }); if (!f[0]) return null; var w = (f[2] || "").toLowerCase(), o = oldCh[f[0].slice(0, 60)]; return { id: o ? o.id : "a" + i + T.rand(3), t: f[0].slice(0, 60), d: (f[1] || "").slice(0, 200), who: /todo/.test(w) ? 0 : /^1|uno|una|solo/.test(w) ? 1 : 2, vibe: "fiesta", dur: 40 }; }).filter(Boolean).slice(0, 40);
     rec.phrases = document.getElementById("ePhr").value.split("\n").map(function (x) { return x.trim().slice(0, 160); }).filter(Boolean).slice(0, 30);
     if (!p) A.index.parties.push(rec);
     saveIndex(); watchParties();
@@ -323,7 +328,7 @@ function vParty() {
     (p.date ? '<div style="font-size:14px;opacity:.9">' + esc(fmtDate(p.date)) + "</div>" : "") + "</div></div>" +
     (p.welcome ? '<p style="margin:0">' + esc(p.welcome) + "</p>" : "") +
     '<div class="modes" role="group" aria-label="Modo de la fiesta">' +
-      '<button type="button" data-mode="karaoke" aria-pressed="' + ((p.mode || "karaoke") === "karaoke") + '"><span class="mi">🎤</span><b>Modo karaoke</b><small>Intro con nombre, karaokes y aplausos</small></button>' +
+      '<button type="button" data-mode="karaoke" aria-pressed="' + ((p.mode || "karaoke") === "karaoke") + '"><span class="mi">🎤</span><b>Modo Reality show</b><small>Karaoke con letra, concurso, pruebas y aplausos</small></button>' +
       '<button type="button" data-mode="music" aria-pressed="' + (p.mode === "music") + '"><span class="mi">🎵</span><b>Modo música</b><small>La gente pide canciones normales' + (p.musicLimit !== false ? ", 2 por móvil" : ", sin límite") + "</small></button></div>" +
     '<div class="box"><div class="kv"><span>Código</span><b>' + esc(p.code) + '</b><span>Invitados</span><b>' + esc(p.pw) + '</b><span>Anfitrión</span><b>' + esc(p.hostpw) + "</b></div></div>" +
     '<div class="box"><b>📺 Abrir en la tele</b><div class="tvshort">En el navegador de la tele escribe<code>' + esc(T.TELE) + '</code>y pon el código <b>' + esc(p.code) + '</b></div><span class="muted" style="font-size:13px">O usa la dirección completa:</span>' +
@@ -342,7 +347,7 @@ function vParty() {
   document.getElementById("edit").addEventListener("click", function () { A.edit = p.code; A.view = "edit"; render(); });
   $app.querySelectorAll(".modes [data-mode]").forEach(function (b) { b.addEventListener("click", function () {
     if (p.mode === b.dataset.mode) return;
-    p.mode = b.dataset.mode; saveIndex(); publishConfig(p).then(function () { render(true); toast(p.mode === "music" ? "Modo música: la tele cambia ya" : "Modo karaoke: la tele cambia ya"); });
+    p.mode = b.dataset.mode; saveIndex(); publishConfig(p).then(function () { render(true); toast(p.mode === "music" ? "Modo música: la tele cambia ya" : "Modo Reality show: la tele cambia ya"); });
   }); });
   $app.querySelectorAll("[data-copy]").forEach(function (b) { b.addEventListener("click", function () {
     if (navigator.clipboard) navigator.clipboard.writeText(b.dataset.copy).then(function () { toast("Enlace copiado"); }, function () { toast("No se pudo copiar", true); });
