@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PARTIENDO LA TARIMA · Abrir en la tele</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bricolage+Grotesque:opsz,wght@12..96,800&family=DM+Sans:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="brand.css?v=1795274348">
+<script src="compat.js?v=1795274348"></script>
+<style>
+/* Short entry page for Smart TVs: type the party code with the remote and go. */
+html,body{margin:0;height:100%;background:#0a0810;color:#f5f1f8;font-family:"DM Sans",Arial,sans-serif}
+body{display:-webkit-box;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;text-align:center;
+  background:radial-gradient(circle at 20% 30%,rgba(255,61,127,.22),transparent 55%),radial-gradient(circle at 85% 80%,rgba(138,43,214,.28),transparent 50%),#0a0810}
+.wrap{padding:3vw}
+.logo{font-size:64px;font-size:7vw;margin-bottom:2vw}
+.sign{color:#ffb547;font-size:22px;font-size:2vw;margin:0 0 2vw;--accent:#ff3d7f}
+input{font-family:"Bricolage Grotesque",Arial,sans-serif;font-weight:800;font-size:48px;font-size:5vw;letter-spacing:.25em;text-transform:uppercase;text-align:center;width:6.5em;background:#fff;color:#111;border:0;border-radius:16px;padding:.15em .3em}
+button{font:inherit;font-weight:700;font-size:26px;font-size:2.2vw;border:0;border-radius:99px;padding:.6em 1.4em;background:#ff3d7f;color:#fff;margin:2vw .6vw 0;cursor:pointer}
+button.sec{background:rgba(255,255,255,.12)}
+button:focus,input:focus{outline:4px solid #ffb547;outline-offset:4px}
+p{color:#a59db0;font-size:20px;font-size:1.6vw;margin:2vw 0 0}
+#err{color:#ff8fb1;min-height:1.4em}
+</style>
+</head>
+<body>
+<form class="wrap" id="f" novalidate>
+  <div class="logo" id="logo"></div>
+  <div><span class="sign">📺 Código de la fiesta</span></div>
+  <input id="c" maxlength="8" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="•••••" aria-label="Código de la fiesta">
+  <div><button type="submit">▶ Abrir en la tele</button><button type="button" class="sec" id="last" style="display:none"></button></div>
+  <p id="err"></p>
+  <p>El código sale en tu panel de administrador.</p>
+</form>
+<script src="shared.js?v=1795274348"></script>
+<script>
+(function () {
+  "use strict";
+  document.getElementById("logo").innerHTML = T.logo();
+  var c = document.getElementById("c"), last = T.store("lastParty");
+  function open(code) { location.href = "tv.html?f=" + encodeURIComponent(code); }
+  if (last) { var b = document.getElementById("last"); b.style.display = ""; b.textContent = "↺ Última: " + last; b.addEventListener("click", function () { open(last); }); }
+  var q = (new URLSearchParams(location.search).get("f") || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (q) { open(q); return; }
+  document.getElementById("f").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var v = c.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (v.length < 4) { document.getElementById("err").textContent = "Escribe el código (5 letras)."; c.focus(); return; }
+    open(v);
+  });
+  c.focus();
+})();
+</script>
+</body>
+</html>

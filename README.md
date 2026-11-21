@@ -18,9 +18,20 @@ Crea tu cuenta de administrador (usuario y contraseña) y desde ahí:
 
 Puedes entrar al panel desde cualquier dispositivo con tu usuario y contraseña. Si olvidas la contraseña no se puede recuperar.
 
-## Novedades v4: El Rey de la Tarima
+## Novedades v5: PARTIENDO LA TARIMA
 
-- **El Rey de la Tarima.** El juego de la noche suma puntos con preguntas, pruebas y el jurado. Al final se corona al Rey o la Reina de la Tarima.
+- **Nuevo nombre y logo.** PARTIENDO LA TARIMA, con rótulo tipo Hollywood en la tele, el móvil, el administrador y el moderador. Quien gana la noche es «la estrella que ha partido la tarima».
+- **Móvil tipo app.** Iconos, menos texto, baldosas de estilos, buscador con botón de borrar y, en modo música, solo «Pedir», «Cola» y «Fiesta».
+- **Buscador arreglado.** Antes, cada letra añadía otro escuchador al buscador y al borrar se colgaba.
+- **Preguntas y votaciones en una hoja inferior** con formas ▲ ◆ ● ■; se minimiza en una burbuja tocando fuera.
+- **Música propia sin YouTube.** Sala de espera con una canción fiestera generada en el navegador desde el primer segundo, y música de concurso tipo circo en las preguntas.
+- **Carteles en recuadro** en tele y móvil.
+- **Compatibilidad con Smart TV.** compat.js rellena lo que falta en navegadores antiguos (Samsung Tizen, LG webOS): SHA-256 en JavaScript, Promise, fetch, NodeList.forEach, etc. Las librerías MQTT y QR van en vendor/ (MQTT pasada a ES5), sin depender de CDN. Si algo falla sale un aviso rojo en vez de pantalla negra.
+- **Entrada corta para la tele:** tele.html pide solo el código de la fiesta y recuerda la última.
+
+## Novedades v4: Partiendo la Tarima
+
+- **Partiendo la Tarima.** El juego de la noche suma puntos con preguntas, pruebas y el jurado. Al final se elige a la estrella que ha partido la tarima.
 - **Pruebas** (cada 2, 3 o 5 canciones, o solo a mano):
   - **Duelo de baile:** dos personas al azar bailan 45 segundos una canción elegida por la app. Luego todos votan en el móvil y el ganador se lleva 500 puntos (250 cada uno si hay empate).
   - **Congelados:** todos bailan; cuando para la música, nadie se mueve.

@@ -370,11 +370,27 @@ var T = (function () {
   }
 
   function hash(str) {
-    var data = new TextEncoder().encode("tarima:" + str);
-    return crypto.subtle.digest("SHA-256", data).then(function (b) {
-      return Array.prototype.map.call(new Uint8Array(b), function (x) { return ("0" + x.toString(16)).slice(-2); }).join("");
-    });
+    var data = window.__utf8 ? window.__utf8("tarima:" + str) : new TextEncoder().encode("tarima:" + str);
+    var subtle = window.crypto && (window.crypto.subtle || window.crypto.webkitSubtle);
+    if (!subtle || !window.__sha256hex) {
+      return subtle ? subtle.digest("SHA-256", data).then(hex) : Promise.resolve(window.__sha256hex(data));
+    }
+    return Promise.resolve().then(function () { return subtle.digest("SHA-256", data); }).then(hex, function () { return window.__sha256hex(data); });
   }
+  // PARTIENDO LA TARIMA logo, Hollywood-sign style (needs brand.css). small = letters only.
+  function logo(small) {
+    var k = 0, rot = [-3, 2, -1, 3, -2, 1, -3, 2, 0, -2, 3, -1, 2, -3, 1, -2, 3];
+    function line(txt, cls) {
+      return '<span class="hw-l' + (cls ? " " + cls : "") + '">' + txt.split("").map(function (ch) {
+        if (ch === " ") return '<span class="hw-c sp"></span>';
+        var i = k++, r = rot[i % rot.length];
+        return '<span class="hw-c" style="--r:' + r + "deg;--y:" + ((i * 7) % 5 - 2) * 0.02 + "em;--d:" + (i * 0.07).toFixed(2) + 's">' + ch + "</span>";
+      }).join("") + "</span>";
+    }
+    return '<div class="hw' + (small ? " sm" : "") + '" role="img" aria-label="Partiendo la Tarima">' + (small ? "" : '<i class="hw-beam b1"></i><i class="hw-beam b2"></i>') +
+      line("PARTIENDO") + line("LA TARIMA", "hw-big") + (small ? "" : '<i class="hw-hill"></i>') + "</div>";
+  }
+  function hex(b) { return Array.prototype.map.call(new Uint8Array(b), function (x) { return ("0" + x.toString(16)).slice(-2); }).join(""); }
 
   // Accepts youtu.be/ID, youtube.com/watch?v=ID, /shorts/ID, /embed/ID, music.youtube.com, or a bare 11-char id.
   function ytId(text) {
@@ -691,6 +707,6 @@ var T = (function () {
     return location.href.replace(/[?#].*$/, "").replace(/[^/]*$/, "");
   }
 
-  return { BROKERS: BROKERS, CATALOG: CATALOG, esc: esc, rand: rand, hash: hash, ytId: ytId, playlistId: playlistId, norm: norm,
+  return { BROKERS: BROKERS, CATALOG: CATALOG, esc: esc, rand: rand, hash: hash, logo: logo, TELE: "papeia001.github.io/TARIMA/tele", ytId: ytId, playlistId: playlistId, norm: norm,
     initials: initials, pw: pw, TASTES: TASTES, fit: fit, artistsOf: artistsOf, festive: festive, CHANNELS: CHANNELS, ytGet: ytGet, cleanTitle: cleanTitle, syncCatalog: syncCatalog, searchYT: searchYT, resolveChannel: resolveChannel, adminTopic: adminTopic, COLORS: COLORS, applyColor: applyColor, hue: hue, art: art, avatar: avatar, store: store, connect: connect, topics: topics, mmss: mmss, siteBase: siteBase };
 })();

@@ -1,0 +1,24 @@
+/* PARTIENDO LA TARIMA: Hollywood-sign style logo. Size it with font-size on .hw (all sizes are in em). */
+.hw{position:relative;display:inline-block;padding:.35em .6em .5em;font-family:"Anton","Bebas Neue",Impact,"Arial Narrow Bold","Arial Narrow",sans-serif;line-height:.9;text-align:center;user-select:none}
+.hw-l{position:relative;z-index:2;white-space:nowrap;display:block}
+.hw-l+.hw-l{margin-top:.08em}
+.hw-c{display:inline-block;color:#fff;margin:0 .035em;transform:translateY(var(--y,0)) rotate(var(--r,0deg));
+  text-shadow:0 .03em 0 #d9d4dc,0 .06em 0 #b9b2bf,0 .12em .18em rgba(0,0,0,.55),0 0 .5em rgba(255,214,120,.35);
+  animation:hwOn 2.8s ease-out both;animation-delay:var(--d,0s)}
+.hw-c.sp{width:.32em}
+.hw-l.hw-big .hw-c{font-size:1.35em}
+.hw-hill{position:absolute;z-index:1;left:-4%;right:-4%;bottom:-.1em;height:1.05em;border-radius:60% 55% 0 0/100% 100% 0 0;
+  background:linear-gradient(180deg,#5a3b5e 0,#2a1a33 55%,rgba(13,11,17,0) 100%)}
+.hw-hill::before,.hw-hill::after{content:"";position:absolute;bottom:.25em;width:.08em;height:.08em;border-radius:50%;background:#ffd36e;
+  box-shadow:1.3em -.15em 0 #ffd36e,2.9em -.3em 0 #fff2c0,4.6em -.2em 0 #ffd36e,6.4em -.35em 0 #ffd36e,8.1em -.18em 0 #fff2c0,9.9em -.3em 0 #ffd36e;animation:hwTw 1.6s infinite alternate}
+.hw-hill::before{left:8%}.hw-hill::after{left:52%;animation-delay:.8s}
+.hw-beam{position:absolute;z-index:0;bottom:0;width:.5em;height:3.2em;background:linear-gradient(0deg,rgba(255,236,170,.32),rgba(255,236,170,0));transform-origin:bottom center;filter:blur(.04em);animation:hwSweep 6s ease-in-out infinite alternate}
+.hw-beam.b1{left:18%;--a:-28deg}.hw-beam.b2{right:18%;--a:28deg;animation-delay:-3s}
+.hw.sm{padding:0}.hw.sm .hw-hill,.hw.sm .hw-beam{display:none}
+.hw.sm .hw-c{text-shadow:0 .05em 0 #b9b2bf,0 .1em .15em rgba(0,0,0,.5);animation:none}
+@keyframes hwOn{0%,8%{opacity:.15}10%{opacity:1}12%{opacity:.3}16%,100%{opacity:1}}
+@keyframes hwTw{to{opacity:.35}}
+@keyframes hwSweep{from{transform:rotate(var(--a))}to{transform:rotate(calc(var(--a) * -1))}}
+@media (prefers-reduced-motion:reduce){.hw *,.hw *::before,.hw *::after{animation:none!important}}
+/* clear signage: boxed, underlined section labels */
+.sign{display:inline-block;border:2px solid currentColor;border-radius:.35em;padding:.18em .55em;font-weight:800;letter-spacing:.08em;text-transform:uppercase;box-shadow:0 .2em 0 -.05em var(--accent,#ff3d7f)}

@@ -4,17 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0d0b11">
-<title>Tarima · Administrador</title>
+<title>PARTIENDO LA TARIMA · Administrador</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=1795269437">
-<script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
-<script>window.mqtt || document.write('<script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="shared.js?v=1795269437"></script>
-<script src="sfx.js?v=1795269437"></script>
-<script src="trivia.js?v=1795269437"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css?v=1795274348">
+<link rel="stylesheet" href="brand.css?v=1795274348">
+<script src="compat.js?v=1795274348"></script>
+<script src="vendor/mqtt.min.js?v=1795274348"></script>
+<script>window.mqtt || document.write('<script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
+<script src="vendor/qrcode.min.js"></script>
+<script src="shared.js?v=1795274348"></script>
+<script src="sfx.js?v=1795274348"></script>
+<script src="trivia.js?v=1795274348"></script>
 <style>
 /* Admin panel: same visual language as the guest app, a list of party cards and a full-page editor. */
 .adm{max-width:760px;margin:0 auto;min-height:100%;padding:calc(env(safe-area-inset-top) + 16px) 16px 60px;display:grid;gap:16px;align-content:start}
@@ -39,7 +41,7 @@
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
 @media (max-width:560px){.grid2{grid-template-columns:1fr}}
 .hero-ph{aspect-ratio:21/9;border-radius:16px;background:linear-gradient(135deg,var(--accent),#2a1530) center/cover no-repeat;display:flex;align-items:flex-end;padding:16px;position:relative;overflow:hidden}
-.hero-ph::before{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.75),transparent 70%)}
+.hero-ph::before{content:"";position:absolute;top:0;right:0;bottom:0;left:0;background:linear-gradient(0deg,rgba(0,0,0,.75),transparent 70%)}
 .hero-ph div{position:relative}
 .hero-ph h1{font-size:30px}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:14.5px;align-items:center}
@@ -124,7 +126,7 @@ function publishConfig(p, photo) {
 function renderLogin(mode, err) {
   mode = mode || "in";
   $app.innerHTML = '<form class="login" id="lf" novalidate style="padding:0">' +
-    '<div class="logo"><svg viewBox="0 0 40 40" fill="none"><circle cx="24" cy="14" r="10" fill="#ff3d7f"/><path d="M17 21 5 33l2 2 12-12" stroke="#ffb547" stroke-width="4" stroke-linecap="round"/></svg>Tarima</div>' +
+    '<div class="loginlogo">' + T.logo() + '</div>' +
     '<p class="muted" style="margin:6px 0 20px">Panel de administrador: crea y personaliza tus fiestas. ¿Primera vez? Pulsa «Crear cuenta».</p>' +
     '<div class="tabsx" style="margin-bottom:16px"><button type="button" class="chip" data-mode="in" aria-pressed="' + (mode === "in") + '">Entrar</button><button type="button" class="chip" data-mode="new" aria-pressed="' + (mode === "new") + '">Crear cuenta</button></div>' +
     '<div class="field"><label for="au">Usuario</label><input id="au" autocomplete="username" autocapitalize="none" maxlength="30" required></div>' +
@@ -217,7 +219,7 @@ function vEdit() {
     '<div class="field"><label for="eBg">Playlist de música de fondo (opcional)</label><input id="eBg" inputmode="url" value="' + esc(d.bg) + '" placeholder="Enlace de playlist de YouTube"></div>' +
     '<div class="switch"><span>Karaoke: máximo 2 canciones por persona<small>Para que cante todo el mundo</small></span><button class="tog" type="button" role="switch" id="eLim" aria-checked="' + (d.limit !== false) + '" aria-label="Límite de canciones en karaoke"></button></div>' +
     '<div class="switch"><span>Música: máximo 2 canciones por móvil<small>Desactívalo para que cada uno pida las que quiera</small></span><button class="tog" type="button" role="switch" id="eMLim" aria-checked="' + (d.musicLimit !== false) + '" aria-label="Límite de canciones en modo música"></button></div>' +
-    '<h2 style="margin:18px 0 4px;font-size:18px">👑 El Rey de la Tarima</h2>' +
+    '<h2 style="margin:18px 0 4px;font-size:18px">🔥 Partiendo la Tarima</h2>' +
     '<div class="field"><label for="eCh">Pruebas (duelo de baile, congelados, adivina la canción, dúo sorpresa)</label><select id="eCh">' + [[2, "Cada 2 canciones"], [3, "Cada 3 canciones"], [5, "Cada 5 canciones"], [0, "Solo cuando las lance el moderador"]].map(function (o) { return '<option value="' + o[0] + '"' + ((d.chEvery === undefined ? 3 : d.chEvery) === o[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + '</select><small class="muted">Si la tele lleva un rato parada, el presentador lanza una prueba para animar.</small></div>' +
     '<div class="field"><label for="eQuiz">Pregunta tipo concurso antes de…</label><select id="eQuiz">' + [[1, "Cada canción"], [2, "Cada 2 canciones"], [3, "Cada 3 canciones"], [0, "Sin preguntas"]].map(function (o) { return '<option value="' + o[0] + '"' + ((d.quiz === undefined ? 1 : d.quiz) === o[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + '</select><small class="muted">Solo en modo karaoke. 20 segundos para responder con botones A, B, C y D en el móvil. Preguntas sobre ' + T.quizArtists + ' artistas y de cultura musical.</small></div>' +
     '<h2 style="margin:18px 0 4px;font-size:18px">Show</h2>' +
@@ -324,7 +326,7 @@ function vParty() {
       '<button type="button" data-mode="karaoke" aria-pressed="' + ((p.mode || "karaoke") === "karaoke") + '"><span class="mi">🎤</span><b>Modo karaoke</b><small>Intro con nombre, karaokes y aplausos</small></button>' +
       '<button type="button" data-mode="music" aria-pressed="' + (p.mode === "music") + '"><span class="mi">🎵</span><b>Modo música</b><small>La gente pide canciones normales' + (p.musicLimit !== false ? ", 2 por móvil" : ", sin límite") + "</small></button></div>" +
     '<div class="box"><div class="kv"><span>Código</span><b>' + esc(p.code) + '</b><span>Invitados</span><b>' + esc(p.pw) + '</b><span>Anfitrión</span><b>' + esc(p.hostpw) + "</b></div></div>" +
-    '<div class="box"><b>Abrir en la tele</b><span class="muted" style="font-size:13px">Escribe esta dirección en el navegador de la tele y pulsa Empezar.</span>' +
+    '<div class="box"><b>📺 Abrir en la tele</b><div class="tvshort">En el navegador de la tele escribe<code>' + esc(T.TELE) + '</code>y pon el código <b>' + esc(p.code) + '</b></div><span class="muted" style="font-size:13px">O usa la dirección completa:</span>' +
     '<div class="linkrow"><code>' + esc(tvUrl(p.code)) + '</code><button class="btn small sec" type="button" data-copy="' + esc(tvUrl(p.code)) + '">Copiar</button></div>' +
     '<a class="btn small" style="text-align:center;text-decoration:none" href="' + esc(tvUrl(p.code)) + '" target="_blank" rel="noopener">Abrir pantalla de la tele aquí</a></div>' +
     '<div class="box"><b>🎬 Panel de moderador</b><span class="muted" style="font-size:13px">Para quien dirige el show: ve la fiesta en directo y lanza aplausos, bocina, mensajes en la tele, preguntas, puntos del jurado y reinicios. Se entra con la clave de ' + (p.modpw ? "moderador (<b>" + esc(p.modpw) + "</b>)" : "anfitrión") + ".</span>" +

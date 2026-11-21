@@ -4,16 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0d0b11">
-<title>Tarima · Moderador</title>
+<title>PARTIENDO LA TARIMA · Moderador</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=1795269437">
-<script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
-<script>window.mqtt || document.write('<script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
-<script src="shared.js?v=1795269437"></script>
-<script src="sfx.js?v=1795269437"></script>
-<script src="trivia.js?v=1795269437"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css?v=1795274348">
+<link rel="stylesheet" href="brand.css?v=1795274348">
+<script src="compat.js?v=1795274348"></script>
+<script src="vendor/mqtt.min.js?v=1795274348"></script>
+<script>window.mqtt || document.write('<script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
+<script src="shared.js?v=1795274348"></script>
+<script src="sfx.js?v=1795274348"></script>
+<script src="trivia.js?v=1795274348"></script>
 <style>
 body{overflow:auto}
 .wrap{max-width:1180px;margin:0 auto;padding:14px 16px 60px}
@@ -84,7 +86,7 @@ function act(cmd, ok) { return send(cmd).then(function (r) { if (!r.ok) toast(ER
 
 /* ---------- login ---------- */
 function login(err) {
-  $app.innerHTML = '<form class="login" id="lf"><h1 style="font-size:30px;margin:0">Tarima<span style="color:var(--accent)">.</span> moderador</h1>' +
+  $app.innerHTML = '<form class="login" id="lf"><div class="loginlogo">' + T.logo() + '</div><h1 class="sign partyname">🎛️ Moderador</h1>' +
     '<p class="muted" style="margin:0">Controla el show en directo: aplausos, efectos, mensajes en la tele, concurso y reinicios.</p>' +
     '<div class="field"><label for="lc">Código de la fiesta</label><input id="lc" maxlength="8" autocapitalize="characters" value="' + esc(pcode || (M.sess && M.sess.code) || "") + '"></div>' +
     '<div class="field"><label for="lk">Clave de moderador o de anfitrión</label><input id="lk" type="password" autocomplete="current-password"></div>' +
@@ -150,7 +152,7 @@ function paint(force) {
 function face(id, name, px) { px = px || 52; var img = M.av && M.av[id]; return img ? '<img src="' + img + '" alt="" style="width:' + px + "px;height:" + px + 'px;border-radius:50%;object-fit:cover;flex:none">' : T.avatar(name || "?", px); }
 function build() {
   built = true;
-  $app.innerHTML = '<div class="wrap"><div class="head"><div><h1>👑 <span id="pname"></span></h1><span class="muted" style="font-size:13px">Panel de moderador · ' + esc(M.sess.code) + ' · <span id="conn">' + (M.links ? "● Conectado" : "○ Conectando…") + '</span></span></div><span class="phase" id="phase"></span></div>' +
+  $app.innerHTML = '<div class="wrap"><div class="head"><div><h1>🌟 <span id="pname"></span></h1><span class="muted" style="font-size:13px">Panel de moderador · ' + esc(M.sess.code) + ' · <span id="conn">' + (M.links ? "● Conectado" : "○ Conectando…") + '</span></span></div><span class="phase" id="phase"></span></div>' +
     '<div class="cols"><div>' +
       '<div class="pcard"><h2>En directo</h2><div id="now"></div><div class="inline"><button class="btn small" type="button" data-a="skip">⏭ Saltar canción</button><button class="btn small sec" type="button" data-a="auto">🎲 Auto karaoke</button></div></div>' +
       '<div class="pcard" id="quiz" hidden></div>' +
@@ -161,9 +163,9 @@ function build() {
       '<div class="pcard"><h2>Mensaje en la tele</h2><form class="inline" id="mf"><input type="text" id="msg" maxlength="140" placeholder="¡Que no decaiga!"><button class="btn small" type="submit">Mostrar</button></form>' +
         '<label class="inline" style="font-size:14px;justify-content:flex-start"><input type="checkbox" id="speak" checked> Que lo diga también el presentador</label>' +
         '<div class="chips wrap">' + QUICK.map(function (t) { return '<button class="chip" type="button" data-quick="' + esc(t) + '">' + esc(t) + "</button>"; }).join("") + "</div></div>" +
-      '<div class="pcard"><h2>👑 Pruebas de El Rey de la Tarima</h2><div class="grid">' + [["dance", "💃 Duelo de baile"], ["freeze", "🧊 Congelados"], ["guess", "🎧 Adivina la canción"], ["duo", "🎤 Dúo sorpresa"]].map(function (c) { return '<button class="fx hot" type="button" data-ch="' + c[0] + '">' + c[1] + "</button>"; }).join("") + "</div>" +
+      '<div class="pcard"><h2>🔥 Pruebas de Partiendo la Tarima</h2><div class="grid">' + [["dance", "💃 Duelo de baile"], ["freeze", "🧊 Congelados"], ["guess", "🎧 Adivina la canción"], ["duo", "🎤 Dúo sorpresa"]].map(function (c) { return '<button class="fx hot" type="button" data-ch="' + c[0] + '">' + c[1] + "</button>"; }).join("") + "</div>" +
         '<span class="muted" style="font-size:13px">Si alguien está cantando, la prueba sale antes de la siguiente canción. Prueba automática cada…</span><div class="chips wrap">' + [[2, "2 canciones"], [3, "3 canciones"], [5, "5 canciones"], [0, "Solo a mano"]].map(function (o) { return '<button class="chip" type="button" data-chev="' + o[0] + '">' + o[1] + "</button>"; }).join("") + "</div></div>" +
-      '<div class="pcard"><h2>Concurso</h2><div class="inline"><button class="btn small" type="button" data-a="quiznow">❓ Lanzar pregunta</button><button class="btn small" type="button" data-a="final">👑 Ganador final</button><button class="btn small sec" type="button" data-a="resetpts">Puntos a cero</button></div>' +
+      '<div class="pcard"><h2>Concurso</h2><div class="inline"><button class="btn small" type="button" data-a="quiznow">❓ Lanzar pregunta</button><button class="btn small" type="button" data-a="final">🌟 Ganador final</button><button class="btn small sec" type="button" data-a="resetpts">Puntos a cero</button></div>' +
         '<span class="muted" style="font-size:13px">Puntos del jurado para quien está cantando</span><div class="inline">' + [100, 300, 500, 1000, -200].map(function (p) { return '<button class="btn small ' + (p < 0 ? "danger" : "sec") + '" type="button" data-jury="' + p + '">' + (p > 0 ? "+" : "") + p + "</button>"; }).join("") + "</div>" +
         '<span class="muted" style="font-size:13px">Pregunta antes de…</span><div class="chips wrap">' + [[1, "Cada canción"], [2, "Cada 2"], [3, "Cada 3"], [0, "Sin preguntas"]].map(function (o) { return '<button class="chip" type="button" data-every="' + o[0] + '">' + o[1] + "</button>"; }).join("") + "</div></div>" +
       '<div class="pcard"><h2>Programa</h2><div class="modes"><button type="button" data-mode="karaoke"><span class="mi">🎤</span><b>Karaoke</b></button><button type="button" data-mode="music"><span class="mi">🎵</span><b>Música</b></button></div>' +

@@ -74,28 +74,81 @@
       s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + 0.7); },
     fanfare: function () { var c = ready(); if (!c) return; var t = c.currentTime + 0.05;
       [[67, 0, 0.15], [67, 0.16, 0.15], [67, 0.32, 0.15], [72, 0.5, 0.9]].forEach(function (p) { tone("sawtooth", N(p[0]), t + p[1], p[2], 0.14); tone("sawtooth", N(p[0] - 12), t + p[1], p[2], 0.08); tone("square", N(p[0] + 4), t + p[1], p[2], 0.04); }); },
-    // soft lounge loop for the waiting room (quiz), only when there is no background playlist
-    startLoop: function () {
-      var c = ready(); if (!c || loop) return;
-      var bus = c.createGain(); bus.gain.value = 0.0001; bus.connect(master); bus.gain.exponentialRampToValueAtTime(0.5, c.currentTime + 1);
-      var chords = [[57, 60, 64, 67], [53, 57, 60, 64], [55, 59, 62, 65], [52, 55, 59, 62]], beat = 60 / 104, step = 0, next = c.currentTime + 0.1;
-      loop = { bus: bus, timer: setInterval(function () {
-        while (next < c.currentTime + 0.3) {
-          var bar = Math.floor(step / 8) % 4, ch = chords[bar], s8 = step % 8;
-          if (s8 === 0) ch.forEach(function (m) { tone("triangle", N(m), next, beat * 3.8, 0.035, bus); });
-          if (s8 % 4 === 0) tone("sine", N(ch[0] - 24), next, beat * 0.9, 0.18, bus);
-          if (s8 % 4 === 3) tone("sine", N(ch[2] - 24), next, beat * 0.4, 0.1, bus);
-          noise(next, 0.04, s8 % 2 ? 0.03 : 0.05, "highpass", 8000, 0.5, bus);
-          if (s8 === 2 || s8 === 6) noise(next, 0.12, 0.09, "bandpass", 1800, 0.7, bus);
-          if (s8 === 0 || s8 === 5) noise(next, 0.18, 0.25, "lowpass", 120, 1, bus);
-          next += beat / 2; step++;
-        }
-      }, 100) };
+    // Background music made in the browser (no YouTube, no files).
+    // "party": upbeat festive house-pop for the waiting room. "circus": cheerful oom-pah game-show tune for the quiz.
+    startLoop: function (kind) {
+      kind = kind || "circus";
+      var c = ready(); if (!c) return;
+      if (loop && loop.kind === kind) return;
+      S.stopLoop();
+      var song = SONGS[kind]; if (!song) return;
+      var bus = c.createGain(); bus.gain.value = 0.0001; bus.connect(master);
+      bus.gain.exponentialRampToValueAtTime(song.vol, c.currentTime + 1.2);
+      var echo = c.createDelay(1), fb = c.createGain(), wet = c.createGain();
+      echo.delayTime.value = song.step * 3; fb.gain.value = 0.28; wet.gain.value = song.echo || 0;
+      echo.connect(fb); fb.connect(echo); echo.connect(wet); wet.connect(bus);
+      var step = 0, next = c.currentTime + 0.1;
+      loop = { kind: kind, bus: bus, level: song.vol, timer: setInterval(function () {
+        while (next < c.currentTime + 0.35) { song.play(step, next, bus, echo); next += song.step; step++; }
+      }, 90) };
     },
     stopLoop: function () {
       if (!loop) return; var l = loop; loop = null; clearInterval(l.timer);
-      try { l.bus.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.8); setTimeout(function () { l.bus.disconnect(); }, 1000); } catch (e) {}
+      try { l.bus.gain.cancelScheduledValues(ac.currentTime); l.bus.gain.setValueAtTime(Math.max(l.bus.gain.value, 0.0001), ac.currentTime); l.bus.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.8); setTimeout(function () { l.bus.disconnect(); }, 1000); } catch (e) {}
+    },
+    loopKind: function () { return loop ? loop.kind : ""; },
+    // lower the music while the presenter talks
+    duck: function (down) {
+      if (!loop || !ac) return; var g = loop.bus.gain, t = ac.currentTime;
+      g.cancelScheduledValues(t); g.setValueAtTime(Math.max(g.value, 0.0001), t); g.exponentialRampToValueAtTime(down ? loop.level * 0.3 : loop.level, t + 0.3);
     }
+  };
+  function pluck(type, f, t0, dur, vol, dest, cut) {
+    var c = ac, o = c.createOscillator(), g = c.createGain(), lp = c.createBiquadFilter();
+    o.type = type; o.frequency.value = f; lp.type = "lowpass"; lp.frequency.setValueAtTime(cut || 4000, t0); lp.frequency.exponentialRampToValueAtTime(600, t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(lp); lp.connect(g); g.connect(dest); o.start(t0); o.stop(t0 + dur + 0.05);
+  }
+  function kick(t0, dest, vol) {
+    var c = ac, o = c.createOscillator(), g = c.createGain();
+    o.frequency.setValueAtTime(150, t0); o.frequency.exponentialRampToValueAtTime(45, t0 + 0.12);
+    g.gain.setValueAtTime(vol || 0.9, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.3);
+    o.connect(g); g.connect(dest); o.start(t0); o.stop(t0 + 0.35);
+  }
+  // melodies are 8 bars of 8 eighth notes; 0 = hold/rest
+  var PARTY_CH = [[60, 64, 67], [55, 59, 62], [57, 60, 64], [53, 57, 60]];
+  var PARTY_A = [79,0,79,81,79,0,76,0, 74,0,74,76,74,0,71,0, 76,0,76,79,81,0,79,76, 77,0,76,0,72,0,0,0];
+  var PARTY_B = [79,0,79,81,79,0,84,0, 83,0,81,0,79,0,74,0, 76,0,79,0,81,0,84,83, 81,0,79,0,77,0,74,0];
+  var CIRC_CH = [[48, 64, 67], [43, 65, 71], [48, 64, 67], [43, 65, 71], [41, 65, 69], [48, 64, 67], [43, 65, 71], [48, 64, 67]];
+  var CIRC_M = [76,75,76,79,84,0,79,76, 74,73,74,77,83,0,79,77, 76,79,84,88,86,84,83,81, 79,78,79,83,86,0,0,0,
+                81,80,81,84,89,0,84,81, 79,78,79,84,88,0,84,79, 77,76,74,71,67,71,74,77, 76,0,72,0,84,0,0,0];
+  var SONGS = {
+    party: { step: 60 / 124 / 2, vol: 0.55, echo: 0.35, play: function (i, t, bus, echo) {
+      var s8 = i % 8, bar = Math.floor(i / 8), ch = PARTY_CH[bar % 4], round = Math.floor(bar / 8) % 4;
+      if (s8 % 2 === 0) kick(t, bus, 0.75);
+      if (s8 === 2 || s8 === 6) noise(t, 0.14, 0.32, "bandpass", 1600, 0.9, bus);                      // clap
+      noise(t, s8 % 2 ? 0.12 : 0.03, s8 % 2 ? 0.09 : 0.05, "highpass", 7500, 0.7, bus);            // hats
+      noise(t + 30 / 124 / 2, 0.02, 0.03, "highpass", 9000, 0.7, bus);                              // shaker 16ths
+      pluck("sawtooth", N(ch[0] - (s8 % 2 ? 12 : 24)), t, 0.2, 0.2, bus, 900);                      // octave disco bass
+      if (s8 % 2 === 1) ch.forEach(function (m) { pluck("sawtooth", N(m + 12), t, 0.16, 0.035, bus, 3500); });   // offbeat stabs
+      if (round !== 3) {                                                                            // 1 round in 4 is groove only
+        var mel = (bar % 8 < 4 ? PARTY_A : PARTY_B)[(bar % 4) * 8 + s8];
+        if (mel) { pluck("square", N(mel), t, 0.28, 0.07, bus, 5000); pluck("square", N(mel), t, 0.28, 0.04, echo, 3000); pluck("triangle", N(mel + 12), t, 0.2, 0.03, bus); }
+      }
+      if (bar % 8 === 7 && s8 >= 4) noise(t, 0.08, 0.05 + 0.04 * (s8 - 4), "bandpass", 2400, 0.8, bus);   // fill
+      if (bar % 8 === 0 && s8 === 0 && i) noise(t, 1.2, 0.18, "highpass", 6000, 0.5, bus);                 // crash
+    } },
+    circus: { step: 60 / 152 / 2, vol: 0.5, echo: 0, play: function (i, t, bus) {
+      var s8 = i % 8, bar = Math.floor(i / 8) % 8, ch = CIRC_CH[bar];
+      if (s8 === 0) pluck("triangle", N(ch[0] - 12), t, 0.3, 0.45, bus, 1200);                       // oom
+      if (s8 === 4) pluck("triangle", N(ch[0] - 5), t, 0.3, 0.4, bus, 1200);
+      if (s8 === 2 || s8 === 6) { ch.slice(1).forEach(function (m) { pluck("square", N(m), t, 0.12, 0.05, bus, 2500); }); noise(t, 0.05, 0.12, "bandpass", 3000, 2, bus); }   // pah + snare tap
+      if (s8 === 0) noise(t, 0.08, 0.15, "lowpass", 180, 1, bus);
+      var mel = CIRC_M[bar * 8 + s8];
+      if (mel) { pluck("square", N(mel), t, 0.16, 0.06, bus, 4500); tone("sine", N(mel + 12), t, 0.12, 0.04, bus); }   // calliope
+      if (bar === 7 && s8 === 4) tone("sine", 600, t, 0.5, 0.05, bus, 1800);                         // slide whistle
+      if (bar === 3 && s8 === 4) { noise(t, 0.06, 0.2, "bandpass", 900, 6, bus); noise(t + 0.1, 0.06, 0.2, "bandpass", 700, 6, bus); }   // bike horn-ish woodblock
+    } }
   };
   S.NAMES = { applause: "👏 Aplausos", airhorn: "📯 Bocina", drumroll: "🥁 Redoble", trombone: "😂 Trombón triste", jingle: "✨ Sintonía", fanfare: "🎺 Fanfarria", ding: "🔔 Ding", whoosh: "💨 Whoosh" };
   T.sfx = S;

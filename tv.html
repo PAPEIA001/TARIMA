@@ -3,16 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tarima · Tele</title>
+<title>PARTIENDO LA TARIMA · Tele</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
-<script>window.mqtt || document.write('<script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="shared.js?v=1795269437"></script>
-<script src="sfx.js?v=1795269437"></script>
-<script src="trivia.js?v=1795269437"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="brand.css?v=1795274348">
+<script src="compat.js?v=1795274348"></script>
+<script src="vendor/mqtt.min.js?v=1795274348"></script>
+<script>window.mqtt || document.write('<script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
+<script src="vendor/qrcode.min.js"></script>
+<script src="shared.js?v=1795274348"></script>
+<script src="sfx.js?v=1795274348"></script>
+<script src="trivia.js?v=1795274348"></script>
 <style>
 /* TV screen: full-window stage with four layers (idle, intro, playing, applause). Sizes in vw so it scales to any TV. */
 :root{
@@ -27,16 +29,34 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--
 button,input,select{font:inherit;color:inherit}
 :focus-visible{outline:.25vw solid var(--accent2);outline-offset:.2vw}
 h1,h2{font-family:var(--display);margin:0;line-height:1.05}
-#stage{position:fixed;inset:0;overflow:hidden}
-#fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
-.layer{position:absolute;inset:0;visibility:hidden;opacity:0;transition:opacity .5s;z-index:2}
+#stage{position:fixed;top:0;right:0;bottom:0;left:0;overflow:hidden}
+#fx{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1}
+.layer{position:absolute;top:0;right:0;bottom:0;left:0;visibility:hidden;opacity:0;transition:opacity .5s;z-index:2}
 .layer.on{visibility:visible;opacity:1}
 
 /* idle */
 #L-idle{background-size:cover!important;background-position:center!important;display:grid;grid-template-columns:1.1fr 1fr;gap:4vw;padding:5vw;align-items:center;
   background:radial-gradient(circle at 20% 30%,rgba(255,61,127,.22),transparent 55%),radial-gradient(circle at 85% 80%,rgba(138,43,214,.28),transparent 50%)}
-#L-idle h1{font-size:6.5vw;font-weight:800;letter-spacing:-.03em}
-#L-idle .sub{font-size:1.9vw;color:var(--muted);margin:1vw 0 0}
+#L-idle h1{font-size:2.6vw;font-weight:800;letter-spacing:.06em;margin-top:1.4vw;color:var(--accent2);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#L-idle .sub{font-size:1.7vw;color:var(--muted);margin:1vw 0 0}
+.idlelogo{font-size:5.4vw;margin-left:-.6vw}
+.sign.lab{font-size:1.05vw;color:var(--text);margin-bottom:.6vw}
+.house{height:12vw;border-radius:.8vw;background:linear-gradient(135deg,#ff3d7f,#8a2bd6 60%,#ffb547);display:flex;align-items:flex-end;justify-content:center;padding-bottom:2vw}
+.eqbig{display:flex;gap:.7vw;align-items:flex-end;height:7vw}
+.eqbig i{width:1.4vw;background:#fff;border-radius:.3vw;animation:eqb 1s infinite ease-in-out}
+.eqbig i:nth-child(2){animation-delay:.15s}.eqbig i:nth-child(3){animation-delay:.3s}.eqbig i:nth-child(4){animation-delay:.45s}.eqbig i:nth-child(5){animation-delay:.2s}.eqbig i:nth-child(6){animation-delay:.35s}.eqbig i:nth-child(7){animation-delay:.05s}
+@keyframes eqb{0%,100%{height:1vw}50%{height:7vw}}
+.house.off .eqbig i{animation:none;height:1vw}
+/* old Smart TV browsers without CSS grid: simple flex fallbacks */
+@supports not (display:grid){
+  #L-idle,#L-play{display:-webkit-box;display:-webkit-flex;display:flex}
+  #L-idle>*{-webkit-flex:1;flex:1;margin-right:4vw}
+  #L-intro,#L-outro,#L-rank,#chal .full{display:-webkit-box;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center}
+  #L-play .video{-webkit-flex:1;flex:1;margin-right:1.4vw}#L-play .side{width:23vw}
+  .bgcard>*,.singer>*,.side>*{display:block;margin-bottom:1vw}
+  .qz-grid{display:-webkit-flex;display:flex;-webkit-flex-wrap:wrap;flex-wrap:wrap}.qz-o{width:48%;margin:0 1% 1.4vw}
+  .join>*{margin-right:2vw}
+}
 .join{display:flex;gap:2.2vw;align-items:center;margin-top:3vw}
 .qrbox{background:#fff;border-radius:1vw;padding:.9vw;width:15vw;height:15vw;flex:none}
 .qrbox img,.qrbox canvas{width:100%!important;height:100%!important;display:block}
@@ -45,6 +65,7 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
 .join .how b{color:var(--text)}
 .bgcard{background:rgba(255,255,255,.06);border-radius:1.4vw;padding:2vw;display:grid;gap:1.2vw}
 .bgcard small{font-size:1.15vw;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.bgcard .sign.lab{justify-self:start}
 .bgcard .t{font-family:var(--display);font-size:2.2vw;font-weight:700}
 .bgcard .cta{font-size:1.7vw;color:var(--accent2);font-weight:700}
 .faces{display:flex;flex-wrap:wrap;gap:.6vw}
@@ -57,7 +78,7 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
 
 /* intro */
 #L-intro{display:grid;place-items:center;text-align:center;padding:4vw}
-.eyebrow{font-size:1.8vw;letter-spacing:.3em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+.eyebrow{display:inline-block;font-size:1.8vw;letter-spacing:.2em;text-transform:uppercase;color:var(--accent2);font-weight:800;border:.2vw solid currentColor;border-radius:.6vw;padding:.4vw 1.2vw;box-shadow:0 .35vw 0 -.1vw var(--accent)}
 #iPhoto.big{width:22vw!important;height:22vw!important;border-width:.5vw!important;animation:pop .9s cubic-bezier(.2,1.6,.4,1) both}
 #iName{font-family:var(--display);font-weight:800;font-size:12vw;line-height:.95;letter-spacing:-.03em;margin:1.5vw 0;word-break:break-word}
 #iSong{font-size:2.6vw;font-weight:700}
@@ -70,13 +91,13 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
 #L-intro.st-retro{background:linear-gradient(180deg,#1b0630 0%,#3a0b4a 55%,#ff3d7f 56%,#ffb547 100%)}
 .st-retro #iName{font-style:italic;color:#fff;-webkit-text-stroke:.15vw #2b0a3d;text-shadow:.6vw .6vw 0 #00e5ff,1.2vw 1.2vw 0 #2b0a3d;animation:slide .8s ease-out both}
 @keyframes slide{from{transform:translateX(-60%) skewX(-12deg);opacity:0}to{transform:none;opacity:1}}
-#L-intro.st-retro::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 2px,transparent 2px 4px);pointer-events:none}
+#L-intro.st-retro::after{content:"";position:absolute;top:0;right:0;bottom:0;left:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 2px,transparent 2px 4px);pointer-events:none}
 .st-retro .eyebrow{color:#00e5ff}
 
 /* playing */
 #L-play{display:grid;grid-template-columns:1fr 23vw;grid-template-rows:1fr auto;gap:1.4vw;padding:1.4vw;background:#000}
 .video{position:relative;border-radius:.8vw;overflow:hidden;background:#000}
-.video iframe,#ytmain{position:absolute;inset:0;width:100%;height:100%;border:0}
+.video iframe,#ytmain{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%;border:0}
 .side{display:grid;grid-template-rows:auto 1fr auto;gap:1.2vw;min-height:0}
 .singer{background:linear-gradient(135deg,rgba(255,61,127,.92),rgba(138,43,214,.92));border-radius:1vw;padding:1.6vw;display:grid;gap:.4vw}
 .singer small{font-size:1.05vw;letter-spacing:.15em;text-transform:uppercase;font-weight:700;opacity:.9}
@@ -114,9 +135,9 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
 .c0{background:#e5384f}.c1{background:#2f6fe0}.c2{background:#e0a400}.c3{background:#1f9e5a}
 #L-quiz.reveal .qz-o{opacity:.25}
 #L-quiz.solid{background:radial-gradient(circle at 50% 0,#3a1258,#0d0b11 70%);z-index:4}
-#chal{position:fixed;inset:0;z-index:6;display:none;pointer-events:none}
+#chal{position:fixed;top:0;right:0;bottom:0;left:0;z-index:6;display:none;pointer-events:none}
 #chal.on{display:block}
-#chal .full{position:absolute;inset:0;display:grid;place-items:center;text-align:center;background:radial-gradient(circle,#4a1670,#0d0b11 75%);padding:4vw}
+#chal .full{position:absolute;top:0;right:0;bottom:0;left:0;display:grid;place-items:center;text-align:center;background:radial-gradient(circle,#4a1670,#0d0b11 75%);padding:4vw}
 #chal .bar{position:absolute;left:2vw;right:2vw;top:2vw;display:flex;justify-content:space-between;align-items:center;gap:2vw;background:rgba(0,0,0,.65);border-radius:1.2vw;padding:1vw 2vw;font-size:2.4vw;font-weight:800}
 #chal .vs{display:flex;gap:4vw;align-items:center;justify-content:center;margin:2vw 0}
 #chal .vs img,#chal .vs .f{width:16vw;height:16vw;border-radius:50%;object-fit:cover;border:.5vw solid var(--accent2);display:grid;place-items:center;font-size:7vw;font-weight:800;background:rgba(255,255,255,.12)}
@@ -124,12 +145,12 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
 #chal h2{font-family:var(--display);font-size:6vw;margin:0;line-height:1}
 #chal p{font-size:2.2vw;color:var(--muted);margin:1vw 0 0}
 #chal .vsx{font-family:var(--display);font-size:3.6vw;font-weight:800}
-#chal .freeze{position:absolute;inset:0;display:grid;place-items:center;background:rgba(120,200,255,.35);font-family:var(--display);font-size:12vw;font-weight:800;color:#fff;text-shadow:0 0 3vw #3db8ff}
+#chal .freeze{position:absolute;top:0;right:0;bottom:0;left:0;display:grid;place-items:center;background:rgba(120,200,255,.35);font-family:var(--display);font-size:12vw;font-weight:800;color:#fff;text-shadow:0 0 3vw #3db8ff}
 #L-quiz.reveal .qz-o.ok{opacity:1;transform:scale(1.04);box-shadow:0 0 0 .4vw #fff}
 .qz-foot{font-size:1.8vw;color:var(--muted);text-align:center;min-height:2.4vw}
 #L-rank{display:grid;place-items:center;text-align:center;padding:3vw}
 #L-rank h2{font-family:var(--display);font-size:5vw;margin:0 0 2vw;font-weight:800}
-.rk{display:grid;gap:1vw;width:min(70vw,1100px);margin:0 auto}
+.rk{display:grid;gap:1vw;width:1100px;width:min(70vw,1100px);margin:0 auto}
 .rk div{display:grid;grid-template-columns:5vw 5vw 1fr auto;gap:1.4vw;align-items:center;background:rgba(255,255,255,.07);border-radius:1vw;padding:1vw 1.6vw;font-size:2.4vw;font-weight:700;text-align:left}
 .rk div:first-child{background:linear-gradient(90deg,var(--accent),#8a2bd6)}
 .rk i{font-style:normal;font-family:var(--display);font-size:2.8vw}
@@ -149,26 +170,31 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
 #notice.show{transform:translate(-50%,0);opacity:1}
 #gear{position:fixed;right:1vw;bottom:1vw;z-index:20;background:rgba(255,255,255,.06);border:0;border-radius:99px;padding:.5vw 1.1vw;font-size:1vw;color:var(--muted);opacity:.5}
 #gear:focus-visible,#gear:hover{opacity:1}
-#playFix{position:fixed;left:2vw;bottom:5vw;z-index:21;display:none;font-size:clamp(14px,1.2vw,22px);padding:.8vw 1.6vw;background:rgba(0,0,0,.75);border:2px solid var(--accent)}
-.screen{position:fixed;inset:0;z-index:30;background:var(--bg);overflow-y:auto;display:none}
+#playFix{position:fixed;left:2vw;bottom:5vw;z-index:21;display:none;font-size:1.2vw;font-size:clamp(14px,1.2vw,22px);padding:.8vw 1.6vw;background:rgba(0,0,0,.75);border:2px solid var(--accent)}
+.screen{position:fixed;top:0;right:0;bottom:0;left:0;z-index:30;background:var(--bg);overflow-y:auto;display:none}
 .screen.on{display:block}
-.panel{max-width:min(980px,92vw);margin:0 auto;padding:4vh 3vw;display:grid;gap:2.2vh}
-.panel h1{font-size:clamp(32px,4vw,64px);font-weight:800;letter-spacing:-.03em}
+.panel{max-width:92vw;max-width:min(980px,92vw);margin:0 auto;padding:4vh 3vw;display:grid;gap:2.2vh}
+.panel h1{font-size:4vw;font-size:clamp(32px,4vw,64px);font-weight:800;letter-spacing:-.03em}
 .panel h1 span{color:var(--accent)}
-.panel p{color:var(--muted);margin:0;font-size:clamp(15px,1.4vw,22px);max-width:65ch}
+.panel h1.sign{font-size:28px;font-size:clamp(20px,2.4vw,40px);color:var(--accent2);justify-self:start;letter-spacing:.06em}
+.startlogo{font-size:64px;font-size:clamp(40px,6vw,110px);justify-self:start}
+.codebox{display:grid;gap:1.4vh;margin-top:2vh;border-top:2px solid var(--line);padding-top:3vh}
+.codebox .sign.lab2{font-size:18px;font-size:clamp(14px,1.3vw,22px);justify-self:start}
+.codebox input{font-family:var(--display);font-size:32px;font-size:clamp(24px,3vw,52px);letter-spacing:.2em;text-transform:uppercase;width:9em;background:#fff;color:#111;border:0;border-radius:12px;padding:.25em .5em}
+.panel p{color:var(--muted);margin:0;font-size:1.4vw;font-size:clamp(15px,1.4vw,22px);max-width:65ch}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:2vh 2vw}
 @media (max-width:700px){.grid{grid-template-columns:1fr}}
 .field{display:grid;gap:6px}
-.field label{font-weight:700;font-size:clamp(14px,1.2vw,20px)}
-.field small{color:var(--muted);font-size:clamp(12px,1vw,16px)}
-.field input,.field select{background:var(--surface);border:2px solid var(--line);border-radius:10px;padding:clamp(10px,1vw,16px);font-size:clamp(16px,1.4vw,24px);outline:none;width:100%}
+.field label{font-weight:700;font-size:1.2vw;font-size:clamp(14px,1.2vw,20px)}
+.field small{color:var(--muted);font-size:1vw;font-size:clamp(12px,1vw,16px)}
+.field input,.field select{background:var(--surface);border:2px solid var(--line);border-radius:10px;padding:1vw;padding:clamp(10px,1vw,16px);font-size:1.4vw;font-size:clamp(16px,1.4vw,24px);outline:none;width:100%}
 .field input:focus,.field select:focus{border-color:var(--accent)}
-.big{border:0;border-radius:99px;padding:clamp(14px,1.4vw,24px) clamp(24px,3vw,48px);font-weight:700;font-size:clamp(18px,1.8vw,30px);background:var(--accent);color:#fff;cursor:pointer}
+.big{border:0;border-radius:99px;padding:1.4vw;padding:clamp(14px,1.4vw,24px) clamp(24px,3vw,48px);font-weight:700;font-size:1.8vw;font-size:clamp(18px,1.8vw,30px);background:var(--accent);color:#fff;cursor:pointer}
 .big.sec{background:var(--surface);color:var(--text);border:2px solid var(--line)}
 .row{display:flex;gap:1.5vw;flex-wrap:wrap;align-items:center}
-.facts{display:flex;gap:3vw;flex-wrap:wrap;font-size:clamp(16px,1.5vw,26px)}
-.facts b{font-family:var(--display);font-size:clamp(28px,3vw,52px);display:block;letter-spacing:.05em}
-.facts span{color:var(--muted);font-size:clamp(12px,1vw,18px);text-transform:uppercase;letter-spacing:.1em;font-weight:700}
+.facts{display:flex;gap:3vw;flex-wrap:wrap;font-size:1.5vw;font-size:clamp(16px,1.5vw,26px)}
+.facts b{font-family:var(--display);font-size:3vw;font-size:clamp(28px,3vw,52px);display:block;letter-spacing:.05em}
+.facts span{color:var(--muted);font-size:1vw;font-size:clamp(12px,1vw,18px);text-transform:uppercase;letter-spacing:.1em;font-weight:700}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -177,16 +203,19 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
   <canvas id="fx"></canvas>
   <section class="layer" id="L-idle" aria-live="polite">
     <div>
-      <h1 id="idleTitle">¿Quién canta?</h1>
-      <p class="sub" id="idleSub">Escanea el código con el móvil y pide tu canción.</p>
+      <div class="idlelogo" id="idleLogo"></div>
+      <h1 id="idleTitle" class="sign">¿Quién canta?</h1>
+      <p class="sub" id="idleSub">Escanea y pide tu canción</p>
       <div class="join"><div class="qrbox" id="qrBig"></div>
-        <div><div class="code" id="codeBig"></div><div class="how" id="howBig"></div></div></div>
+        <div><span class="sign lab">Código</span><div class="code" id="codeBig"></div><div class="how" id="howBig"></div></div></div>
     </div>
     <div class="bgcard">
-      <small>Música de fondo</small>
+      <span class="sign lab">🎵 Sonando</span>
       <div class="bgvid" id="bgwrap"><div id="ytbg"></div></div>
-      <div class="t" id="bgTitle">Sin música de fondo</div>
-      <div class="cta" id="idleCta">La cola está vacía. ¡Sé el primero!</div>
+      <div class="house" id="houseMix"><div class="eqbig"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+      <div class="t" id="bgTitle">Música de la casa</div>
+      <div class="cta" id="idleCta">¡Pide la primera!</div>
+      <span class="sign lab" id="facesLab" style="display:none">👥 En la fiesta</span>
       <div class="faces" id="faces"></div>
     </div>
   </section>
@@ -218,7 +247,7 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
 
 <div class="screen" id="setup">
   <form class="panel" id="sf" novalidate>
-    <h1>Tarima<span>.</span> pantalla de la tele</h1>
+    <h1>PARTIENDO LA TARIMA<span>.</span> tele</h1>
     <p>Prepara la fiesta. Esto se guarda en esta tele: la próxima vez solo tendrás que pulsar Empezar.</p>
     <div class="grid">
       <div class="field"><label for="fName">Nombre de la fiesta</label><input id="fName" maxlength="40"></div>
@@ -234,8 +263,9 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
 
 <div class="screen" id="start">
   <div class="panel" style="min-height:100%;align-content:center">
-    <h1 id="sTitle"></h1>
-    <p>Pulsa Empezar con el mando para activar el sonido y la pantalla completa.</p>
+    <div class="startlogo" id="sLogo"></div>
+    <h1 id="sTitle" class="sign"></h1>
+    <p>▶️ Pulsa <b>Empezar</b> con el mando</p>
     <div class="facts">
       <div><span>Código</span><b id="sCode"></b></div>
       <div><span>Contraseña invitados</span><b id="sPw"></b></div>
@@ -244,6 +274,10 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
     </div>
     <div class="row"><button class="big" type="button" id="sGo">Empezar la fiesta</button><button class="big sec" type="button" id="sCfg">Ajustes</button></div>
     <p id="sNet"></p>
+    <form id="joinCode" class="codebox" novalidate>
+      <span class="sign lab2">🔑 ¿Tienes un código de fiesta?</span>
+      <div class="row"><input id="jcIn" maxlength="8" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="CÓDIGO" aria-label="Código de la fiesta"><button class="big" type="submit">Abrir fiesta</button></div>
+    </form>
   </div>
 </div>
 
@@ -254,6 +288,7 @@ var esc = T.esc;
 var CODE_ABC = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 var FCODE = (new URLSearchParams(location.search).get("f") || "").toUpperCase().replace(/[^A-Z0-9]/g, "") || null;
 var ADMIN = !!FCODE;   // party created in the admin panel: settings come from there
+if (FCODE) T.store("lastParty", FCODE);   // tele.html offers it next time
 var cfg = ADMIN ? { code: FCODE, name: "Cargando fiesta…", intro: "neon", limit: true } : (T.store("tv") || {});
 var firstRun = !ADMIN && !T.store("tv");
 if (!ADMIN) {
@@ -295,12 +330,20 @@ function showStart() {
   $("sTitle").textContent = cfg.name; $("sCode").textContent = cfg.code; $("sQueue").textContent = Q().length;
   if (ADMIN) {
     $("sPw").parentNode.style.display = "none"; $("sHost").parentNode.style.display = "none"; $("sCfg").style.display = "none";
-    $("sNet").textContent = !gotConfig ? "Buscando la fiesta en el servidor…" : "Las contraseñas y la foto se cambian desde tu panel de administrador; la tele se actualiza sola.";
+    $("sNet").textContent = !gotConfig ? "⏳ Buscando la fiesta…" : "⚙️ Todo se cambia desde el panel de administrador";
     $("start").style.backgroundImage = cfg.photo ? "linear-gradient(rgba(10,8,16,.82),rgba(10,8,16,.92)),url('" + cfg.photo + "')" : "";
     $("start").style.backgroundSize = "cover"; $("start").style.backgroundPosition = "center";
   } else { $("sPw").textContent = cfg.pw; $("sHost").textContent = cfg.hostpw; }
+  if (!$("sLogo").firstChild) $("sLogo").innerHTML = T.logo();
+  $("joinCode").style.display = ADMIN ? "none" : "";
   $("setup").classList.remove("on"); $("start").classList.add("on"); if (!started) $("sGo").focus();
 }
+$("joinCode").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var c = $("jcIn").value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (c.length < 4) { notice("Escribe el código que sale en el panel de administrador.", 4000); return; }
+  location.href = location.pathname.replace(/[^\/]*$/, "") + "tv.html?f=" + c;
+});
 $("sf").addEventListener("submit", function (e) {
   e.preventDefault();
   cfg.name = $("fName").value.trim() || "Fiesta en casa";
@@ -353,11 +396,12 @@ function applyConfig(m) {
 
 function go() {
   if (ADMIN && !gotConfig) { notice("Aún no he recibido los datos de la fiesta. Espera unos segundos.", 4000); return; }
-  try { var r = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); if (r && r.catch) r.catch(function () {}); } catch (e) {}
+  try { var de = document.documentElement, fs = de.requestFullscreen || de.webkitRequestFullscreen || de.webkitRequestFullScreen || de.mozRequestFullScreen; var r = fs && fs.call(de); if (r && r.catch) r.catch(function () {}); } catch (e) {}
   $("setup").classList.remove("on"); $("start").classList.remove("on");
   T.sfx.unlock(); T.sfx.set(cfg.sfx);
   if (started) return;
   started = true;
+  if (!cfg.bg && Q().length === 0) T.sfx.startLoop("party");   // festive house music from the very first second
   paintJoin(); publish();
   whenPlayers(function () {
     if (cfg.bg) bgLoad(cfg.bg);
@@ -379,9 +423,10 @@ function paintJoin() {
     });
   }
   $("codeBig").textContent = cfg.code; $("codeSmall").textContent = cfg.code;
-  $("howBig").innerHTML = "o entra en <b>" + esc(guestUrl.replace(/^https?:\/\//, "").replace(/\?.*$/, "")) + "</b><br>con el código <b>" + esc(cfg.code) + "</b> y la contraseña de la fiesta";
+  $("howBig").innerHTML = "📱 <b>" + esc(guestUrl.replace(/^https?:\/\//, "").replace(/\?.*$/, "")) + "</b>";
+  if (!$("idleLogo").firstChild) $("idleLogo").innerHTML = T.logo();
   $("idleTitle").textContent = cfg.name;
-  $("idleSub").textContent = cfg.welcome || "Escanea el código con el móvil y pide tu canción.";
+  $("idleSub").textContent = cfg.welcome || "📷 Escanea y pide tu canción";
   $("L-idle").style.backgroundImage = cfg.photo ? "linear-gradient(90deg,rgba(10,8,16,.92) 0%,rgba(10,8,16,.7) 55%,rgba(10,8,16,.85) 100%),url('" + cfg.photo + "')" : "";
   $("iPhoto").style.display = cfg.photo ? "block" : "none";
   if (cfg.photo) $("iPhoto").src = cfg.photo;
@@ -440,8 +485,16 @@ function bgLoad(url) {
   return true;
 }
 function applyBg() {
+  ambient();
   if (!bgP || !bgP.__ready || !cfg.bg) return;
-  if ((phase === "idle" || phase === "quiz" || phase === "rank") && bgOn) bgP.playVideo(); else bgP.pauseVideo();
+  if (phase === "idle" && bgOn) bgP.playVideo(); else bgP.pauseVideo();
+}
+// Waiting room: our own festive music (no YouTube) whenever the TV is idle and there is no playlist.
+function ambient() {
+  var house = started && phase === "idle" && bgOn && !cfg.bg && cfg.sfx !== false;
+  if (house) T.sfx.startLoop("party"); else if (T.sfx.loopKind() === "party") T.sfx.stopLoop();
+  var hm = $("houseMix"); if (hm) { hm.style.display = cfg.bg ? "none" : ""; hm.classList.toggle("off", !house); }
+  var bw = $("bgwrap"); if (bw) bw.style.display = cfg.bg ? "" : "none";
 }
 
 /* ---------- playback flow ---------- */
@@ -449,14 +502,15 @@ function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
 function clearTimers() { timers.forEach(clearTimeout); timers = []; }
 function layer(id) {
   ["L-idle", "L-intro", "L-play", "L-outro", "L-quiz", "L-rank"].forEach(function (l) { $(l).classList.toggle("on", l === id); });
+  ambient();
 }
 function toIdle() {
   clearTimers(); now = null; phase = "idle"; QZ = null; endChallenge(true); idleSince = Date.now();
   try { mainP.stopVideo(); } catch (e) {}
   layer("L-idle"); hidePlayFix();
-  $("bgTitle").textContent = cfg.bg ? (bgTitle || "Música de fondo") : "Sin música de fondo";
-  $("idleCta").textContent = cfg.mode === "music" ? "Modo música: pide canciones desde el móvil." : cfg.bg ? "La cola está vacía. ¡Sé el primero!" : "La cola está vacía. El anfitrión puede poner música desde la pestaña Música.";
-  $("idleSub").textContent = cfg.mode === "music" ? "Modo música. Escanea el código y pide tus canciones." : (cfg.welcome || "Escanea el código con el móvil y pide tu canción.");
+  $("bgTitle").textContent = cfg.bg ? (bgTitle || "Música de fondo") : "Música de la casa";
+  $("idleCta").textContent = cfg.mode === "music" ? "🎵 ¡Pide tus canciones!" : "🎤 ¡Pide la primera!";
+  $("idleSub").textContent = cfg.mode === "music" ? "📷 Escanea y pide música" : (cfg.welcome || "📷 Escanea y pide tu canción");
   applyBg(); saveParty(); publish(); paintGuests();
   if (cfg.autoOn) scheduleAuto();
 }
@@ -538,7 +592,7 @@ function outro() {
   var nx = Q()[0];
   $("oNext").textContent = nx ? "Ahora: " + nx.singer + " con «" + nx.t + "»" : "La tarima queda libre. ¿Quién se anima?";
   var top = ranking().slice(0, 3);
-  $("oRank").innerHTML = top.length ? "👑 El Rey de la Tarima: " + top.map(function (g, i) { return "<b>" + (i + 1) + ". " + esc(g.name) + "</b> " + g.pts; }).join(" · ") : "";
+  $("oRank").innerHTML = top.length ? "🔥 Partiendo la Tarima: " + top.map(function (g, i) { return "<b>" + (i + 1) + ". " + esc(g.name) + "</b> " + g.pts; }).join(" · ") : "";
   layer("L-outro"); publish();
   var vk = verdictKey(now); T.sfx.applause(vk === "good" ? 5 : 3.5, vk !== "brave"); if (vk === "good") T.sfx.airhorn();
   var lang = cfg.voice.lang, line = T.line(lang, vk, { n: now.singer });
@@ -569,7 +623,7 @@ function publish() {
     ts: Date.now(), name: cfg.name, code: cfg.code, now: n, queue: Q().map(pick), mode: cfg.mode, autoOn: !!cfg.autoOn, catAt: CAT.at || 0,
     guests: P.guests.map(function (g) { return { id: g.id, name: g.name, host: g.host, sung: g.sung || 0, pts: g.pts || 0 }; }),
     quiz: QZ ? quizPublic() : null, ch: CH ? chPublic() : null, chEvery: cfg.chEvery, quizEvery: cfg.quiz, voice: { on: cfg.voice.on, where: cfg.voice.where, lang: cfg.voice.lang, gender: cfg.voice.gender },
-    canSearch: !!cfg.key, limit: cfg.mode === "music" ? cfg.musicLimit : cfg.limit, ads: now ? !!adSet[now.ids[now.idx || 0]] : false, intro: cfg.intro, bg: { set: !!cfg.bg, on: bgOn, title: bgTitle }
+    canSearch: !!cfg.key, limit: cfg.mode === "music" ? cfg.musicLimit : cfg.limit, ads: now ? !!adSet[now.ids[now.idx || 0]] : false, intro: cfg.intro, bg: { set: !!cfg.bg, on: bgOn, title: cfg.bg ? bgTitle : "Música de la casa", house: !cfg.bg }
   }, true);
 }
 setInterval(publish, 5000);
@@ -770,6 +824,7 @@ setInterval(function () { if (started) maybeSync(); }, 3600 * 1000);
 var AV = {}, autoT = null;
 function paintGuests() {
   var el = $("faces"); if (!el) return;
+  $("facesLab").style.display = P.guests.length ? "" : "none";
   el.innerHTML = P.guests.slice(0, 24).map(function (g) { return AV[g.id] ? '<img src="' + AV[g.id] + '" alt="' + esc(g.name) + '">' : "<span>" + esc(g.name.charAt(0).toUpperCase()) + "</span>"; }).join("");
 }
 function pickOne(a) { return a[Math.floor(Math.random() * a.length)]; }
@@ -832,7 +887,7 @@ function scheduleAuto() {
 }
 
 /* ---------- trivia ---------- */
-var QZ = null, QSECS = 20, QCOL = ["A", "B", "C", "D"];
+var QZ = null, QSECS = 20, QCOL = ["▲", "◆", "●", "■"];
 function ranking() { return P.guests.filter(function (g) { return g.pts > 0; }).sort(function (a, b) { return b.pts - a.pts; }); }
 function quizPublic() {
   var o = { id: QZ.id, q: QZ.q, o: QZ.o, stage: QZ.stage, left: Math.max(0, QZ.ends - Date.now()), about: QZ.about, n: Object.keys(QZ.ans).length };
@@ -847,14 +902,14 @@ function runQuiz(done, preset) {
   QZ = { id: T.rand(6), q: q.q, o: q.o, c: q.c, about: q.about, vid: q.vid, ans: {}, res: {}, stage: "ask", ends: Date.now() + QSECS * 1000, done: done };
   phase = "quiz"; applyBg();
   var L = $("L-quiz"); L.classList.remove("reveal");
-  $("qzEyebrow").textContent = "👑 El Rey de la Tarima · " + (q.title || (q.about ? "Pregunta sobre " + q.about : "Pregunta musical"));
+  $("qzEyebrow").textContent = "🔥 Partiendo la Tarima · " + (q.title || (q.about ? "Pregunta sobre " + q.about : "Pregunta musical"));
   L.classList.toggle("solid", !!q.vid);
   $("qzSub").textContent = (song.singer ? "Antes de que cante " + song.singer + " · " : "") + "responde en tu móvil";
   $("qzQ").textContent = q.q;
   $("qzGrid").innerHTML = q.o.map(function (t, i) { return '<div class="qz-o c' + i + '" id="qo' + i + '"><b>' + QCOL[i] + "</b><span>" + esc(t) + '</span><span class="n" id="qn' + i + '"></span></div>'; }).join("");
   paintQuizCount();
   if (q.vid) { layer("L-quiz"); $("L-play").classList.add("on"); applyBg(); try { bgP.pauseVideo(); } catch (e) {} try { mainP.loadVideoById({ videoId: q.vid, startSeconds: 25 }); } catch (e) {} }
-  else { layer("L-quiz"); T.sfx.whoosh(); if (!(cfg.bg && bgOn)) T.sfx.startLoop(); }
+  else { layer("L-quiz"); T.sfx.whoosh(); try { bgP.pauseVideo(); } catch (e) {} T.sfx.startLoop("circus"); }
   var lang = cfg.voice.lang;
   say(q.vid ? T.line(lang, "guess") : T.line(lang, "quiz") + (T.speaksSpanish(lang) ? " " + q.q : ""));
   for (var k = 1; k <= QSECS; k++) (function (k) { later(function () { $("qzTime").textContent = QSECS - k; if (QSECS - k <= 5 && QSECS - k > 0) T.sfx.tick(QSECS - k <= 2); }, k * 1000); })(k);
@@ -897,7 +952,7 @@ function showRank() {
   var list = ranking();
   if (!list.length) { finishQuiz(); return; }
   phase = "rank";
-  $("winAv").style.display = "none"; $("rkTitle").textContent = "👑 El Rey de la Tarima · ranking"; $("rkSub").textContent = now ? "Ahora sube a la tarima " + now.singer : "";
+  $("winAv").style.display = "none"; $("rkTitle").textContent = "🔥 Partiendo la Tarima · ranking"; $("rkSub").textContent = now ? "Ahora sube a la tarima " + now.singer : "";
   $("rkList").innerHTML = rankHtml(list);
   layer("L-rank"); publish();
   if (Math.random() < 0.6) say(T.line(cfg.voice.lang, "lead", { n: list[0].name, k: list[0].pts }));
@@ -910,8 +965,8 @@ function showFinal() {
   clearTimers(); phase = "rank"; QZ = null;
   var w = list[0];
   $("winAv").style.display = AV[w.id] ? "block" : "none"; if (AV[w.id]) $("winAv").src = AV[w.id];
-  $("rkTitle").textContent = "👑 ¡" + w.name + ", Rey de la Tarima!";
-  $("rkList").innerHTML = rankHtml(list); $("rkSub").textContent = "Ranking final de El Rey de la Tarima";
+  $("rkTitle").textContent = "🌟 ¡" + w.name + " ha partido la tarima!";
+  $("rkList").innerHTML = rankHtml(list); $("rkSub").textContent = "Ranking final de Partiendo la Tarima";
   layer("L-rank"); burst(); publish();
   T.sfx.drumroll(2.2); setTimeout(function () { T.sfx.fanfare(); T.sfx.applause(6, true); }, 2300);
   say(T.line(cfg.voice.lang, "winner", { n: w.name }));
@@ -926,7 +981,7 @@ function shout(text, from) {
   el.classList.add("show"); clearTimeout(shoutT); shoutT = setTimeout(function () { el.classList.remove("show"); }, 7000);
 }
 
-/* ---------- El Rey de la Tarima: challenges ---------- */
+/* ---------- Partiendo la Tarima: challenges ---------- */
 var CH = null, idleSince = Date.now();
 var DANCE = ["Macarena", "Aserejé", "Bomba", "Danza Kuduro", "Uptown Funk", "Y.M.C.A.", "Waka Waka", "Gasolina", "Despacito", "Stayin' Alive", "Dancing Queen", "Fiesta", "Rasputin", "Suavemente", "La bicicleta", "Vivir mi vida", "Conga", "La vida es un carnaval", "Livin' la vida loca", "Mi gente", "Happy", "Don't Start Now", "Levitating", "Bailando", "Hips Don't Lie", "Pa Madrid", "Borriquito", "Me colé en una fiesta", "Sex Bomb", "Celebration"];
 var DUOS = ["Corazón partío", "La bicicleta", "Despacito", "Shallow", "Aserejé", "La tortura", "Mamma Mia", "Bailar pegados", "Hasta que me olvides", "Tusa", "Felices los 4", "Échame la culpa", "Me colé en una fiesta", "Sin documentos", "Devuélveme a mi chica", "Waka Waka"];
@@ -962,7 +1017,7 @@ function runChallenge(kind, done) {
     if (now) Q().unshift(now);
     now = entry; now.idx = 0; now.claps = 0;
     phase = "challenge"; CH = { id: T.rand(6), kind: "duo", pair: pair, stage: "intro" }; layer("L-idle");
-    chal('<div class="full"><div><div class="eyebrow">👑 El Rey de la Tarima · prueba</div><h2>🎤 ¡Dúo sorpresa!</h2><div class="vs"><div>' + faceHtml(pair[0]) + "<b>" + esc(pair[0].name) + '</b></div><div class="vsx">+</div><div>' + faceHtml(pair[1]) + "<b>" + esc(pair[1].name) + "</b></div></div><p>Os toca cantar juntos «" + esc(ds.t) + "». ¡Sin escapatoria!</p></div></div>");
+    chal('<div class="full"><div><div class="eyebrow">🔥 Partiendo la Tarima · prueba</div><h2>🎤 ¡Dúo sorpresa!</h2><div class="vs"><div>' + faceHtml(pair[0]) + "<b>" + esc(pair[0].name) + '</b></div><div class="vsx">+</div><div>' + faceHtml(pair[1]) + "<b>" + esc(pair[1].name) + "</b></div></div><p>Os toca cantar juntos «" + esc(ds.t) + "». ¡Sin escapatoria!</p></div></div>");
     T.sfx.drumroll(1.5); later(function () { T.sfx.fanfare(); }, 1600);
     say(T.line(lang, "duo", { n: pair[0].name, m: pair[1].name, s: ds.t }));
     publish();
@@ -973,7 +1028,7 @@ function runChallenge(kind, done) {
   CH = { id: T.rand(6), kind: kind, pair: pair2, stage: "intro", votes: {}, track: track };
   phase = "challenge"; layer("L-idle"); applyBg(); try { bgP.pauseVideo(); } catch (e) {}
   var DUR = kind === "dance" ? 45 : 50;
-  var head = '<div class="full"><div><div class="eyebrow">👑 El Rey de la Tarima · prueba</div>';
+  var head = '<div class="full"><div><div class="eyebrow">🔥 Partiendo la Tarima · prueba</div>';
   if (kind === "dance") chal(head + '<h2>💃 ¡Duelo de baile! 🕺</h2><div class="vs"><div>' + faceHtml(pair2[0]) + "<b>" + esc(pair2[0].name) + '</b></div><div class="vsx">VS</div><div>' + faceHtml(pair2[1]) + "<b>" + esc(pair2[1].name) + "</b></div></div><p>" + DUR + " segundos bailando. Luego votáis desde el móvil. ¡El ganador se lleva 500 puntos!</p></div></div>");
   else chal(head + "<h2>🧊 ¡Congelados!</h2><p class='vsx' style='color:var(--text)'>Todo el mundo a bailar.</p><p>Cuando pare la música, ¡quietos como estatuas! Quien se mueva, fuera.</p></div></div>");
   T.sfx.drumroll(2);
@@ -1043,6 +1098,7 @@ function say(text) {
   if (!speaking) nextSay();
 }
 function duck(on) {
+  T.sfx.duck(on);
   try { if (mainP && mainP.setVolume) mainP.setVolume(on ? 35 : 100); } catch (e) {}
   try { if (bgP && bgP.setVolume) bgP.setVolume(on ? 20 : 60); } catch (e) {}
 }
