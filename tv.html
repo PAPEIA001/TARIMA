@@ -10,7 +10,8 @@
 <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
 <script>window.mqtt || document.write('<script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="shared.js?v=1795266638"></script>
+<script src="shared.js?v=1795267360"></script>
+<script src="trivia.js?v=1795267360"></script>
 <style>
 /* TV screen: full-window stage with four layers (idle, intro, playing, applause). Sizes in vw so it scales to any TV. */
 :root{
@@ -99,6 +100,33 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
 #L-outro h2{font-size:6vw;max-width:90vw;margin:0 auto;font-weight:800;letter-spacing:-.02em}
 #L-outro p{font-size:2.4vw;color:var(--muted);margin:1vw 0 0}
 
+/* trivia */
+#L-quiz{display:grid;grid-template-rows:auto 1fr auto;gap:2vw;padding:3vw 4vw;background:radial-gradient(circle at 50% 0,rgba(138,43,214,.35),transparent 60%)}
+.qz-top{display:flex;justify-content:space-between;align-items:center;gap:2vw}
+.qz-top .eyebrow{font-size:1.5vw}
+.qz-time{width:8vw;height:8vw;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-size:3.6vw;font-weight:800;background:var(--accent);box-shadow:0 0 3vw var(--accent)}
+.qz-q{font-family:var(--display);font-size:4.2vw;line-height:1.08;letter-spacing:-.02em;font-weight:800;align-self:center;text-align:center;max-width:88vw;margin:0 auto}
+.qz-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.4vw}
+.qz-o{display:flex;align-items:center;gap:1.4vw;padding:1.6vw 2vw;border-radius:1vw;font-size:2.4vw;font-weight:700;color:#fff;min-height:8vw;transition:opacity .3s,transform .3s}
+.qz-o b{width:4.4vw;height:4.4vw;border-radius:.6vw;background:rgba(0,0,0,.22);display:grid;place-items:center;font-family:var(--display);font-size:2.6vw;flex:none}
+.qz-o .n{margin-left:auto;font-size:1.6vw;opacity:.9}
+.c0{background:#e5384f}.c1{background:#2f6fe0}.c2{background:#e0a400}.c3{background:#1f9e5a}
+#L-quiz.reveal .qz-o{opacity:.25}
+#L-quiz.reveal .qz-o.ok{opacity:1;transform:scale(1.04);box-shadow:0 0 0 .4vw #fff}
+.qz-foot{font-size:1.8vw;color:var(--muted);text-align:center;min-height:2.4vw}
+#L-rank{display:grid;place-items:center;text-align:center;padding:3vw}
+#L-rank h2{font-family:var(--display);font-size:5vw;margin:0 0 2vw;font-weight:800}
+.rk{display:grid;gap:1vw;width:min(70vw,1100px);margin:0 auto}
+.rk div{display:grid;grid-template-columns:5vw 5vw 1fr auto;gap:1.4vw;align-items:center;background:rgba(255,255,255,.07);border-radius:1vw;padding:1vw 1.6vw;font-size:2.4vw;font-weight:700;text-align:left}
+.rk div:first-child{background:linear-gradient(90deg,var(--accent),#8a2bd6)}
+.rk i{font-style:normal;font-family:var(--display);font-size:2.8vw}
+.rk img,.rk span.f{width:5vw;height:5vw;border-radius:50%;object-fit:cover;background:rgba(255,255,255,.15);display:grid;place-items:center}
+.rk em{font-style:normal;font-size:1.6vw;color:var(--accent2);margin-left:1vw}
+.podium{font-size:2.4vw;color:var(--muted);margin-top:1vw}
+#winAv{width:20vw;height:20vw;border-radius:50%;object-fit:cover;border:.6vw solid var(--accent2);margin:0 auto 1.5vw;display:none;animation:pop .9s cubic-bezier(.2,1.6,.4,1) both}
+.orank{margin-top:2vw;font-size:1.8vw;color:var(--muted)}
+.orank b{color:var(--text)}
+
 /* notices, buttons, setup */
 #notice{position:fixed;top:2vw;left:50%;transform:translate(-50%,-150%);background:var(--accent2);color:#2a1600;font-weight:700;font-size:1.5vw;padding:1vw 2vw;border-radius:99px;z-index:20;transition:transform .35s,opacity .35s;opacity:0;max-width:80vw;text-align:center}
 #notice.show{transform:translate(-50%,0);opacity:1}
@@ -157,7 +185,13 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
     </div>
     <div class="prog"><span id="pt">0:00</span><div class="track"><i id="pbar"></i></div><span id="pd">0:00</span></div>
   </section>
-  <section class="layer" id="L-outro"><div><img id="oAv" alt="" style="display:none;width:16vw;height:16vw;border-radius:50%;object-fit:cover;margin:0 auto 2vw;border:.5vw solid var(--accent)"><h2 id="oTitle"></h2><p id="oNext"></p></div></section>
+  <section class="layer" id="L-quiz">
+    <div class="qz-top"><div><div class="eyebrow" id="qzEyebrow">Pregunta para todos</div><div id="qzSub" style="font-size:1.6vw;color:var(--muted);margin-top:.4vw"></div></div><div class="qz-time" id="qzTime">20</div></div>
+    <div class="qz-q" id="qzQ"></div>
+    <div><div class="qz-grid" id="qzGrid"></div><div class="qz-foot" id="qzFoot"></div></div>
+  </section>
+  <section class="layer" id="L-rank"><div style="width:100%"><img id="winAv" alt=""><h2 id="rkTitle">Ranking</h2><div class="rk" id="rkList"></div><p class="podium" id="rkSub"></p></div></section>
+  <section class="layer" id="L-outro"><div><img id="oAv" alt="" style="display:none;width:16vw;height:16vw;border-radius:50%;object-fit:cover;margin:0 auto 2vw;border:.5vw solid var(--accent)"><h2 id="oTitle"></h2><p id="oNext"></p><div class="orank" id="oRank"></div></div></section>
 </div>
 <div id="notice" role="status"></div>
 <button id="playFix" class="big" type="button">¿No se mueve el vídeo? Pulsa OK</button>
@@ -218,11 +252,14 @@ var P = T.store("party." + cfg.code) || { queue: [], guests: [] };
 if (!P.mqueue) P.mqueue = [];
 if (!cfg.mode) cfg.mode = "karaoke";
 if (cfg.musicLimit === undefined) cfg.musicLimit = true;
+if (cfg.quiz === undefined) cfg.quiz = 1;   // trivia before every Nth karaoke song; 0 = off
+if (!cfg.voice) cfg.voice = { on: true, gender: "f", lang: "es-ES", where: "tv" };
+if (!cfg.phrases) cfg.phrases = [];
 function Q() { return cfg.mode === "music" ? P.mqueue : P.queue; }
 if (P.now) { (P.now.kind === "music" ? P.mqueue : P.queue).unshift(P.now); P.now = null; }   // a song cut off by a reload starts again
 var now = null, phase = "idle", bgOn = true, bgTitle = "", H = {}, conn = null, tp = T.topics(cfg.code), gotConfig = false;
 var mainP = null, bgP = null, ytReady = false, started = false, timers = [], searchCache = {};
-function saveParty() { T.store("party." + cfg.code, { queue: P.queue, mqueue: P.mqueue, guests: P.guests, history: P.history || [], now: now }); }
+function saveParty() { T.store("party." + cfg.code, { queue: P.queue, mqueue: P.mqueue, guests: P.guests, history: P.history || [], asked: P.asked || [], qn: P.qn || 0, now: now }); }
 var guestUrl = T.siteBase() + "?p=" + cfg.code;
 
 /* ---------- screens ---------- */
@@ -279,6 +316,9 @@ function applyConfig(m) {
   if (typeof m.limit === "boolean") cfg.limit = m.limit;
   if (typeof m.musicLimit === "boolean") cfg.musicLimit = m.musicLimit;
   if (m.channels && m.channels.length) cfg.channels = m.channels;
+  if (typeof m.quiz === "number") cfg.quiz = m.quiz;
+  if (m.voice) cfg.voice = m.voice;
+  if (m.phrases) cfg.phrases = m.phrases;
   if (m.mode && m.mode !== cfg.mode) { if (started) setMode(m.mode); else cfg.mode = m.mode; }
   if (started) maybeSync();
   H.pw = m.pwHash; H.host = m.hostHash;
@@ -299,6 +339,8 @@ function go() {
     if (cfg.bg) bgLoad(cfg.bg);
     if (Q().length) startNext(); else toIdle();
     setTimeout(maybeSync, 3000);
+    setTimeout(function () { say(T.line(cfg.voice.lang, "welcome", { p: cfg.name })); }, 1500);
+    setTimeout(checkVoices, 4000);
   });
 }
 
@@ -375,17 +417,17 @@ function bgLoad(url) {
 }
 function applyBg() {
   if (!bgP || !bgP.__ready || !cfg.bg) return;
-  if (phase === "idle" && bgOn) bgP.playVideo(); else bgP.pauseVideo();
+  if ((phase === "idle" || phase === "quiz" || phase === "rank") && bgOn) bgP.playVideo(); else bgP.pauseVideo();
 }
 
 /* ---------- playback flow ---------- */
 function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
 function clearTimers() { timers.forEach(clearTimeout); timers = []; }
 function layer(id) {
-  ["L-idle", "L-intro", "L-play", "L-outro"].forEach(function (l) { $(l).classList.toggle("on", l === id); });
+  ["L-idle", "L-intro", "L-play", "L-outro", "L-quiz", "L-rank"].forEach(function (l) { $(l).classList.toggle("on", l === id); });
 }
 function toIdle() {
-  clearTimers(); now = null; phase = "idle";
+  clearTimers(); now = null; phase = "idle"; QZ = null;
   try { mainP.stopVideo(); } catch (e) {}
   layer("L-idle"); hidePlayFix();
   $("bgTitle").textContent = cfg.bg ? (bgTitle || "Música de fondo") : "Sin música de fondo";
@@ -402,6 +444,12 @@ function startNext() {
   now = n; now.idx = 0; now.claps = 0;
   P.history = (P.history || []).concat([now.songId]).slice(-300);
   if (cfg.mode === "music") { phase = "playing"; applyBg(); playNow(); saveParty(); return; }
+  P.qn = (P.qn || 0) + 1;
+  if (cfg.quiz > 0 && P.guests.length && P.qn >= cfg.quiz) { P.qn = 0; runQuiz(intro); return; }
+  intro();
+}
+function intro() {
+  clearTimers(); if (!now) { toIdle(); return; }
   phase = "intro";
   applyBg();
   var L = $("L-intro"); L.className = "layer on st-" + cfg.intro;
@@ -417,6 +465,7 @@ function startNext() {
   var c = 7; $("iCount").textContent = c;
   for (var i = 1; i <= 6; i++) (function (k) { later(function () { $("iCount").textContent = c - k; }, k * 1000); })(i);
   later(playNow, 7000);
+  say(T.line(cfg.voice.lang, now.auto ? "auto" : "intro", { n: now.singer, s: now.t }) + (now.auto ? " " + T.line(cfg.voice.lang, "intro", { n: now.singer, s: now.t }) : ""));
   saveParty(); publish();
 }
 function playNow() {
@@ -457,8 +506,15 @@ function outro() {
   var oav = AV[now.singerId]; $("oAv").style.display = oav ? "block" : "none"; if (oav) $("oAv").src = oav;
   var nx = Q()[0];
   $("oNext").textContent = nx ? "Ahora: " + nx.singer + " con «" + nx.t + "»" : "La tarima queda libre. ¿Quién se anima?";
+  var top = ranking().slice(0, 3);
+  $("oRank").innerHTML = top.length ? "🏆 Ranking de preguntas: " + top.map(function (g, i) { return "<b>" + (i + 1) + ". " + esc(g.name) + "</b> " + g.pts; }).join(" · ") : "";
   layer("L-outro"); publish();
-  later(startNext, 4500);
+  var lang = cfg.voice.lang, line = T.speaksSpanish(lang) ? $("oTitle").textContent.replace(/[🔥🌟👏💪]/g, "") : T.line(lang, verdictKey(now), { n: now.singer });
+  if (T.speaksSpanish(lang) && Math.random() < 0.5 && top.length) line += " " + T.line(lang, "lead", { n: top[0].name, k: top[0].pts });
+  var custom = customPhrase(); if (custom && Math.random() < 0.35) line += " " + custom;
+  say(line);
+  if (P.finalPending) { P.finalPending = false; later(showFinal, 5000); return; }
+  later(startNext, top.length ? 6500 : 4500);
 }
 setInterval(function () {
   if (phase !== "playing" || !mainP || !mainP.getCurrentTime) return;
@@ -479,7 +535,8 @@ function publish() {
   }
   conn.publish(tp.state, {
     ts: Date.now(), name: cfg.name, code: cfg.code, now: n, queue: Q().map(pick), mode: cfg.mode, autoOn: !!cfg.autoOn, catAt: CAT.at || 0,
-    guests: P.guests.map(function (g) { return { id: g.id, name: g.name, host: g.host, sung: g.sung || 0 }; }),
+    guests: P.guests.map(function (g) { return { id: g.id, name: g.name, host: g.host, sung: g.sung || 0, pts: g.pts || 0 }; }),
+    quiz: QZ ? quizPublic() : null, quizEvery: cfg.quiz, voice: { on: cfg.voice.on, where: cfg.voice.where, lang: cfg.voice.lang, gender: cfg.voice.gender },
     canSearch: !!cfg.key, limit: cfg.mode === "music" ? cfg.musicLimit : cfg.limit, ads: now ? !!adSet[now.ids[now.idx || 0]] : false, intro: cfg.intro, bg: { set: !!cfg.bg, on: bgOn, title: bgTitle }
   }, true);
 }
@@ -538,7 +595,8 @@ function onCmd(topic, cmd) {
       if (!now) { reply(cmd, { ok: true }); break; }
       if (!host && now.singerId !== cmd.cid) { reply(cmd, { ok: false, err: "host" }); return; }
       reply(cmd, { ok: true });
-      if (phase === "playing") outro(); else startNext();
+      if (phase === "quiz" || phase === "rank") { endQuizNow(); intro(); }
+      else if (phase === "playing") outro(); else startNext();
       break;
     case "search":
       changed = false; doSearch(cmd); break;
@@ -569,6 +627,19 @@ function onCmd(topic, cmd) {
     case "sync":
       if (!host) { reply(cmd, { ok: false, err: "host" }); return; }
       changed = false; maybeSync(true).then(function (r) { reply(cmd, r); }); break;
+    case "answer": {
+      changed = false;
+      var ok = QZ && QZ.stage === "ask" && cmd.qz === QZ.id && !QZ.ans[cmd.cid] && cmd.i >= 0 && cmd.i < 4 && Date.now() <= QZ.ends + 800;
+      if (ok) { QZ.ans[cmd.cid] = { i: cmd.i, t: Date.now() }; paintQuizCount(); if (Object.keys(QZ.ans).length >= P.guests.length) later(revealQuiz, 600); }
+      reply(cmd, { ok: !!ok, err: ok ? undefined : "late" }); break;
+    }
+    case "game":
+      if (!host) { reply(cmd, { ok: false, err: "host" }); return; }
+      if (cmd.action === "reset") { P.guests.forEach(function (x) { x.pts = 0; }); notice("Puntos a cero. ¡Empieza el juego!", 4000); }
+      else if (cmd.action === "final") { if (!ranking().length) { reply(cmd, { ok: false, err: "nopoints" }); return; } if (phase === "idle") showFinal(); else P.finalPending = true; }
+      else if (cmd.action === "quiz" && typeof cmd.every === "number") cfg.quiz = Math.max(0, Math.min(5, cmd.every));
+      else if (cmd.action === "voice") cfg.voice.on = !!cmd.on;
+      saveCfg(); reply(cmd, { ok: true, later: !!P.finalPending }); break;
     case "settings":
       if (!host) { reply(cmd, { ok: false, err: "host" }); return; }
       if (cmd.mode === "music" || cmd.mode === "karaoke") setMode(cmd.mode);
@@ -643,6 +714,7 @@ function paintGuests() {
   el.innerHTML = P.guests.slice(0, 24).map(function (g) { return AV[g.id] ? '<img src="' + AV[g.id] + '" alt="' + esc(g.name) + '">' : "<span>" + esc(g.name.charAt(0).toUpperCase()) + "</span>"; }).join("");
 }
 function pickOne(a) { return a[Math.floor(Math.random() * a.length)]; }
+function verdictKey(n) { var r = (n.claps || 0) / Math.max(1, P.guests.length - 1); return r >= 3 ? "good" : r >= 1 ? "ok" : "brave"; }
 function verdict(n) {
   var c = n.claps || 0, others = Math.max(1, P.guests.length - 1), r = c / others, nm = n.singer;
   if (r >= 3) return pickOne(["¡Ovación para " + nm + "! 🔥", nm + " lo ha clavado 🌟", "¡Qué voz, " + nm + "! Esto es un estadio"]);
@@ -650,13 +722,21 @@ function verdict(n) {
   return pickOne(["¡" + nm + " le ha echado valor! 💪", "Lo importante es disfrutarlo, " + nm, "¡Bravo, " + nm + "! El próximo lo bordas"]);
 }
 var cheerI = 0;
+function shyGuests() { return P.guests.filter(function (g) { return !(g.sung) && !Q().some(function (q) { return q.singerId === g.id; }) && (!now || now.singerId !== g.id); }); }
 function cheer() {
-  var shy = P.guests.filter(function (g) { return !(g.sung) && !Q().some(function (q) { return q.singerId === g.id; }) && (!now || now.singerId !== g.id); });
+  var shy = shyGuests();
   if (cfg.mode === "music") return "";
   if (shy.length) { var g = shy[cheerI++ % shy.length]; return pickOne(["¿" + g.name + ", para cuándo tu canción? 🎤", g.name + " aún no ha cantado… ¡que suba!", "¡Venga, " + g.name + ", que te toca animarte!"]); }
   return pickOne(["¡Pide la tuya desde el móvil!", "Aplaude desde el móvil con 👏", "¡Qué nivel tiene esta fiesta!"]);
 }
+var cheerN = 0;
 setInterval(function () {
+  cheerN++;
+  if (phase === "idle" && cfg.mode !== "music" && cheerN % 6 === 0) {   // about once a minute
+    var c = customPhrase(), shy = shyGuests();
+    if (c && Math.random() < 0.6) { notice(c, 6000); say(c); }
+    else if (shy.length) say(T.line(cfg.voice.lang, "shy", { n: pickOne(shy).name }));
+  }
   var msg = cheer();
   if (phase === "playing") $("ticker").textContent = msg;
   if (phase === "idle" && msg && cfg.mode !== "music") $("idleCta").textContent = msg;
@@ -692,11 +772,125 @@ function scheduleAuto() {
   autoT = setTimeout(function () { if (cfg.autoOn && phase === "idle" && cfg.mode === "karaoke" && !Q().length) autoPick(); }, 15000);
 }
 
+/* ---------- trivia ---------- */
+var QZ = null, QSECS = 20, QCOL = ["A", "B", "C", "D"];
+function ranking() { return P.guests.filter(function (g) { return g.pts > 0; }).sort(function (a, b) { return b.pts - a.pts; }); }
+function quizPublic() {
+  var o = { id: QZ.id, q: QZ.q, o: QZ.o, stage: QZ.stage, left: Math.max(0, QZ.ends - Date.now()), about: QZ.about, n: Object.keys(QZ.ans).length };
+  if (QZ.stage !== "ask") { o.c = QZ.c; o.res = QZ.res; }
+  return o;
+}
+function runQuiz(done) {
+  var song = now;
+  var q = T.quizFor(song, P.asked || []);
+  P.asked = (P.asked || []).concat([q.key]).slice(-200);
+  QZ = { id: T.rand(6), q: q.q, o: q.o, c: q.c, about: q.about, ans: {}, res: {}, stage: "ask", ends: Date.now() + QSECS * 1000, done: done };
+  phase = "quiz"; applyBg();
+  var L = $("L-quiz"); L.classList.remove("reveal");
+  $("qzEyebrow").textContent = q.about ? "Pregunta sobre " + q.about : "Pregunta musical";
+  $("qzSub").textContent = "Antes de que cante " + song.singer + " · responde en tu móvil";
+  $("qzQ").textContent = q.q;
+  $("qzGrid").innerHTML = q.o.map(function (t, i) { return '<div class="qz-o c' + i + '" id="qo' + i + '"><b>' + QCOL[i] + "</b><span>" + esc(t) + '</span><span class="n" id="qn' + i + '"></span></div>'; }).join("");
+  paintQuizCount(); layer("L-quiz");
+  var lang = cfg.voice.lang;
+  say(T.line(lang, "quiz") + (T.speaksSpanish(lang) ? " " + q.q : ""));
+  for (var k = 1; k <= QSECS; k++) (function (k) { later(function () { $("qzTime").textContent = QSECS - k; }, k * 1000); })(k);
+  $("qzTime").textContent = QSECS;
+  later(revealQuiz, QSECS * 1000 + 300);
+  saveParty(); publish();
+}
+function paintQuizCount() { if (QZ) $("qzFoot").textContent = Object.keys(QZ.ans).length + " de " + P.guests.length + " han respondido"; }
+function revealQuiz() {
+  if (!QZ || QZ.stage !== "ask") return;
+  clearTimers();
+  QZ.stage = "reveal";
+  var right = [], counts = [0, 0, 0, 0];
+  Object.keys(QZ.ans).forEach(function (cid) {
+    var a = QZ.ans[cid]; counts[a.i]++;
+    if (a.i !== QZ.c) return;
+    var el = Math.max(0, a.t - (QZ.ends - QSECS * 1000)), pts = Math.round(1000 - 500 * Math.min(1, el / (QSECS * 1000)));
+    var g = P.guests.filter(function (x) { return x.id === cid; })[0]; if (!g) return;
+    g.pts = (g.pts || 0) + pts; QZ.res[cid] = pts; right.push({ g: g, t: a.t });
+  });
+  right.sort(function (a, b) { return a.t - b.t; });
+  $("L-quiz").classList.add("reveal"); $("qo" + QZ.c).classList.add("ok");
+  counts.forEach(function (n, i) { $("qn" + i).textContent = n ? n + " 👤" : ""; });
+  $("qzTime").textContent = "✓";
+  $("qzFoot").textContent = right.length ? "Han acertado: " + right.map(function (r) { return r.g.name; }).join(", ") : "Nadie ha acertado esta vez";
+  var lang = cfg.voice.lang;
+  say(T.line(lang, "reveal", { x: QZ.o[QZ.c] }) + " " + (right.length ? T.line(lang, "right", { n: right[0].g.name }) : T.line(lang, "nobody")));
+  publish(); saveParty();
+  later(function () { showRank(false); }, 5000);
+}
+function rankHtml(list) {
+  return list.slice(0, 6).map(function (g, i) {
+    var gain = QZ && QZ.res[g.id];
+    return "<div><i>" + (i + 1) + "</i>" + (AV[g.id] ? '<img src="' + AV[g.id] + '" alt="">' : '<span class="f">' + esc(g.name.charAt(0).toUpperCase()) + "</span>") + "<span>" + esc(g.name) + (gain ? "<em>+" + gain + "</em>" : "") + "</span><span>" + g.pts + "</span></div>";
+  }).join("");
+}
+function showRank() {
+  var list = ranking();
+  if (!list.length) { finishQuiz(); return; }
+  phase = "rank";
+  $("winAv").style.display = "none"; $("rkTitle").textContent = "🏆 Ranking"; $("rkSub").textContent = now ? "Ahora sube a la tarima " + now.singer : "";
+  $("rkList").innerHTML = rankHtml(list);
+  layer("L-rank"); publish();
+  if (Math.random() < 0.6) say(T.line(cfg.voice.lang, "lead", { n: list[0].name, k: list[0].pts }));
+  later(finishQuiz, 5000);
+}
+function finishQuiz() { var d = QZ && QZ.done; QZ = null; if (d) d(); else toIdle(); }
+function endQuizNow() { clearTimers(); QZ = null; }
+function showFinal() {
+  var list = ranking(); if (!list.length) { startNext(); return; }
+  clearTimers(); phase = "rank"; QZ = null;
+  var w = list[0];
+  $("winAv").style.display = AV[w.id] ? "block" : "none"; if (AV[w.id]) $("winAv").src = AV[w.id];
+  $("rkTitle").textContent = "👑 ¡" + w.name + " gana la noche!";
+  $("rkList").innerHTML = rankHtml(list); $("rkSub").textContent = "Ranking final del juego de preguntas";
+  layer("L-rank"); burst(); publish();
+  say(T.line(cfg.voice.lang, "winner", { n: w.name }));
+  later(function () { if (Q().length) startNext(); else toIdle(); }, 15000);
+}
+var winFx = false;
+function burst() { winFx = true; setTimeout(function () { winFx = false; }, 15000); }
+
+/* ---------- voice presenter ---------- */
+var sayQ = [], speaking = false;
+function customPhrase() {
+  var ph = (cfg.phrases || []).filter(function (x) { return x && x.trim(); });
+  if (!ph.length) return "";
+  var g = pickOne(shyGuests().length ? shyGuests() : P.guests.length ? P.guests : [{ name: "" }]);
+  return pickOne(ph).replace(/\{nombre\}/gi, g.name || "").replace(/\{fiesta\}/gi, cfg.name || "");
+}
+function say(text) {
+  text = String(text || "").trim();
+  if (!text || !cfg.voice || !cfg.voice.on || !started) return;
+  if (conn) conn.publish(tp.say, { text: text, lang: cfg.voice.lang, gender: cfg.voice.gender, at: Date.now() });
+  if (cfg.voice.where !== "tv") return;
+  sayQ.push(text); if (sayQ.length > 3) sayQ.shift();
+  if (!speaking) nextSay();
+}
+function duck(on) {
+  try { if (mainP && mainP.setVolume) mainP.setVolume(on ? 35 : 100); } catch (e) {}
+  try { if (bgP && bgP.setVolume) bgP.setVolume(on ? 20 : 60); } catch (e) {}
+}
+function nextSay() {
+  var t = sayQ.shift();
+  if (!t) { speaking = false; duck(false); return; }
+  speaking = true; duck(true);
+  T.speak(t, { lang: cfg.voice.lang, gender: cfg.voice.gender, onend: function () { setTimeout(nextSay, 250); } });
+}
+function checkVoices() {
+  if (!cfg.voice.on || cfg.voice.where !== "tv") return;
+  if (!window.speechSynthesis || !T.voices().length) notice("Esta tele no tiene voces. En el panel, elige «La voz suena en el móvil del anfitrión».", 9000);
+}
+
 /* ---------- karaoke / music mode ---------- */
 function setMode(m) {
   if (m === cfg.mode) return;
   clearTimers(); hidePlayFix();
   if (now) { Q().unshift(now); now = null; }
+  QZ = null;
   try { mainP.stopVideo(); } catch (e) {}
   cfg.mode = m; saveCfg();
   notice(m === "music" ? "Modo música activado" : "Modo karaoke activado", 4000);
@@ -721,7 +915,7 @@ function spawn(m) {
 }
 function frame() {
   var W = fx.width, H2 = fx.height; ctx.clearRect(0, 0, W, H2);
-  var want = phase === "intro" ? cfg.intro : phase === "outro" ? "confeti" : phase === "idle" && started ? "bokeh" : "none";
+  var want = phase === "intro" ? cfg.intro : phase === "outro" || (phase === "rank" && winFx) ? "confeti" : phase === "quiz" || phase === "rank" ? "bokeh" : phase === "idle" && started ? "bokeh" : "none";
   if (want !== mode) spawn(want);
   for (var i = 0; i < parts.length; i++) {
     var p = parts[i];

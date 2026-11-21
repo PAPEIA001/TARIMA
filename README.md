@@ -18,6 +18,11 @@ Crea tu cuenta de administrador (usuario y contraseña) y desde ahí:
 
 Puedes entrar al panel desde cualquier dispositivo con tu usuario y contraseña. Si olvidas la contraseña no se puede recuperar.
 
+## Novedades v3
+
+- **Juego de preguntas tipo concurso.** En modo karaoke, antes de cada canción (o cada 2 o 3, o nunca, se elige en el panel) sale en la tele una pregunta sobre el artista que va a sonar. Todos responden en el móvil con botones grandes A, B, C y D, con 20 segundos. Si aciertas pronto ganas más puntos (de 500 a 1000). Después se ve el ranking, y en el móvil del anfitrión (pestaña Fiesta) está el botón «Ver ganador final» y «Poner puntos a cero». Hay preguntas de unos 70 artistas y de cultura musical general; si el artista no está, sale una general.
+- **Presentador con voz.** La tele habla como un presentador de concurso: da la bienvenida, presenta a cada cantante, lee las preguntas, dice quién va ganando y anima a quien no ha cantado. En el panel eliges voz de chica o chico, español de España, latino u otro idioma (inglés, portugués, francés, italiano, alemán) y escribes tus propias frases ({nombre} y {fiesta} se sustituyen solos). Usa las voces del propio aparato, sin coste. Si la tele no tiene voces, elige «En el móvil del anfitrión» y activa «Voz del presentador en este móvil» en la pestaña Fiesta.
+
 ## Novedades v2
 
 - **Modo karaoke / modo música.** En el panel de administrador (página de cada fiesta) y en el móvil del anfitrión (pestaña Fiesta) hay un interruptor. En modo música la tele pone vídeos musicales sin intro y cada móvil puede pedir 2 canciones como máximo (el límite se puede quitar o cambiar).

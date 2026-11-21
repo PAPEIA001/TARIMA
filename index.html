@@ -9,16 +9,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=1795266638">
+<link rel="stylesheet" href="app.css?v=1795267360">
 <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
 <script>window.mqtt || document.write('<script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
-<script src="shared.js?v=1795266638"></script>
+<script src="shared.js?v=1795267360"></script>
+<script src="trivia.js?v=1795267360"></script>
 </head>
 <body>
 <div class="app" id="app"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<div class="app" id="app"></div>
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="quiz" id="quiz" role="dialog" aria-modal="true" aria-labelledby="qzQ" hidden></div>
 <script>
 (function () {
 "use strict";
@@ -50,7 +50,7 @@ var esc = T.esc;
 function openConn(code) {
   if (S.conn && S.code === code) return;
   S.code = code; S.topics = T.topics(code); S.state = null; S.config = null; S.cat = null; S.av = {};
-  S.conn = T.connect([S.topics.state, S.topics.res(S.cid), S.topics.config, S.topics.catalog, S.topics.avAll], onMsg, function (n, why) {
+  S.conn = T.connect([S.topics.state, S.topics.res(S.cid), S.topics.config, S.topics.catalog, S.topics.avAll, S.topics.say], onMsg, function (n, why) {
     S.linkCount = n; S.libMissing = why === "nolib"; paintConn();
   });
 }
@@ -71,8 +71,10 @@ function onMsg(topic, m) {
       var prevMode = S.state && S.state.mode;
       S.state = m; S.lastState = Date.now();
       if (prevMode && m.mode !== prevMode) { S.yt = null; toast(m.mode === "music" ? "La fiesta ha pasado a modo música 🎵" : "¡Vuelve el karaoke! 🎤"); }
-      if (S.session) soft();
+      if (S.session) { soft(); paintQuiz(); }
     }
+  } else if (topic === S.topics.say) {
+    if (S.voiceHere && m.text && Date.now() - (m.at || 0) < 30000) T.speak(m.text, { lang: m.lang, gender: m.gender });
   } else if (topic === S.topics.res(S.cid) && m.rid && S.pending[m.rid]) {
     var p = S.pending[m.rid]; delete S.pending[m.rid]; clearTimeout(p.t); p.cb(m);
   }
@@ -106,7 +108,9 @@ function errText(r) {
     nokey: "La búsqueda en YouTube no está activada todavía. Elige del catálogo o pega un enlace.",
     musiconly: "Ahora la fiesta está en modo música: busca la canción en YouTube o pega un enlace.",
     search: "La búsqueda de YouTube ha fallado. Prueba otra vez o pega un enlace.",
-    noguests: "Todavía no hay invitados para elegir."
+    noguests: "Todavía no hay invitados para elegir.",
+    nopoints: "Todavía nadie tiene puntos en el juego de preguntas.",
+    late: "Se acabó el tiempo para esta pregunta."
   };
   return r.msg || map[r.err] || "Algo ha fallado. Prueba otra vez.";
 }
@@ -280,6 +284,36 @@ function paintMini() {
   }
 }
 
+/* ---------- trivia ---------- */
+var QL = ["A", "B", "C", "D"], quizT = null;
+function paintQuiz() {
+  var el = document.getElementById("quiz"), q = S.session && st().quiz;
+  if (!q || isMusic()) { el.hidden = true; el.innerHTML = ""; S.qz = null; clearInterval(quizT); return; }
+  if (!S.qz || S.qz.id !== q.id) S.qz = { id: q.id, mine: null, deadline: Date.now() + (q.left || 0), hide: false };
+  var z = S.qz;
+  if (q.stage === "ask" && q.left !== undefined) z.deadline = Math.min(z.deadline, Date.now() + q.left);
+  if (z.hide) { el.hidden = true; return; }
+  el.hidden = false;
+  var reveal = q.stage !== "ask", got = reveal && q.res && q.res[S.cid];
+  var head = '<div class="qz-h"><span>' + esc(q.about ? "Pregunta sobre " + q.about : "Pregunta musical") + '</span><b id="qzLeft">' + (reveal ? "✓" : Math.max(0, Math.ceil((z.deadline - Date.now()) / 1000))) + "</b></div>";
+  var msg = "";
+  if (reveal) msg = got ? '<div class="qz-msg ok">¡Correcto! +' + got + " puntos</div>" : z.mine !== null ? '<div class="qz-msg bad">Era la ' + QL[q.c] + ": " + esc(q.o[q.c]) + "</div>" : '<div class="qz-msg">Era la ' + QL[q.c] + ": " + esc(q.o[q.c]) + "</div>";
+  else if (z.mine !== null) msg = '<div class="qz-msg">Respuesta enviada: ' + QL[z.mine] + ". ¡Mira la tele!</div>";
+  el.innerHTML = '<div class="qz-in">' + head + '<p id="qzQ" class="qz-q">' + esc(q.q) + "</p>" +
+    '<div class="qz-btns">' + q.o.map(function (t, i) {
+      var cls = "qz-b c" + i + (z.mine === i ? " sel" : "") + (reveal && i === q.c ? " ok" : "") + (reveal && i !== q.c ? " off" : "");
+      return '<button type="button" class="' + cls + '" data-ans="' + i + '"' + (reveal || z.mine !== null ? " disabled" : "") + "><b>" + QL[i] + "</b><span>" + esc(t) + "</span></button>";
+    }).join("") + "</div>" + msg +
+    '<button type="button" class="qz-x" id="qzHide">Ahora no</button></div>';
+  el.querySelectorAll("[data-ans]").forEach(function (b) { b.addEventListener("click", function () {
+    var i = +b.dataset.ans; z.mine = i; if (navigator.vibrate) navigator.vibrate(30); paintQuiz();
+    send({ type: "answer", qz: q.id, i: i }).then(function (r) { if (!r.ok) { toast(errText(r), true); } });
+  }); });
+  document.getElementById("qzHide").addEventListener("click", function () { z.hide = true; el.hidden = true; });
+  clearInterval(quizT);
+  if (!reveal) quizT = setInterval(function () { var l = document.getElementById("qzLeft"); if (l) l.textContent = Math.max(0, Math.ceil((z.deadline - Date.now()) / 1000)); }, 250);
+}
+
 /* ---------- catalog helpers ---------- */
 function catAll() {
   var c = S.cat || {}, ads = c.ads || {}, out = [];
@@ -415,6 +449,8 @@ var VIEWS = {
         '<div class="switch"><span>' + (music ? "Música: máximo 2 por móvil" : "Karaoke: máximo 2 por persona") + '<small>Quítalo para pedir sin límite</small></span><button class="tog" type="button" role="switch" aria-checked="' + (s.limit !== false) + '" data-set="limit" aria-label="Límite de canciones"></button></div>' +
         (!music ? '<div class="switch"><span>Auto karaoke continuo<small>Si la cola se vacía, la tele elige a alguien que haya cantado poco y una canción a su gusto</small></span><button class="tog" type="button" role="switch" aria-checked="' + !!s.autoOn + '" data-set="auto" aria-label="Auto karaoke continuo"></button></div>' : "") +
         '<div class="switch"><span>Catálogo de canales<small>' + (s.catAt ? "Actualizado " + new Date(s.catAt).toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "Aún sin actualizar") + '</small></span><button class="btn small sec" type="button" data-act="sync">Actualizar</button></div>' : "") +
+      (!music ? rankingBlock(s, host) : "") +
+      '<div class="switch"><span>Voz del presentador en este móvil<small>Para cuando la tele no tiene voz: este móvil hace de presentador</small></span><button class="tog" type="button" role="switch" aria-checked="' + !!S.voiceHere + '" id="voiceHere" aria-label="Voz del presentador en este móvil"></button></div>' +
       '<div class="h-row"><h3>Mi perfil</h3></div><div class="box" id="prof">' + selfieBlock() +
       '<div class="field" style="margin:0"><label>Estilos que te gustan</label>' + tasteChips(S.profile.tastes || []) + "</div>" +
       '<div class="field" style="margin:0"><label for="lArt">Artistas favoritos</label><input id="lArt" value="' + esc(S.profile.artists || "") + '" placeholder="Rosalía, Queen, Bad Bunny…" maxlength="200"></div>' +
@@ -430,6 +466,17 @@ var VIEWS = {
   }
 };
 
+function rankingBlock(s, host) {
+  var list = (s.guests || []).filter(function (g) { return g.pts > 0; }).sort(function (a, b) { return b.pts - a.pts; });
+  var every = s.quizEvery === undefined ? 1 : s.quizEvery;
+  return '<div class="h-row"><h3>🏆 Juego de preguntas</h3></div>' +
+    (list.length ? list.slice(0, 10).map(function (g, i) { return '<div class="row"><span class="pos">' + (i + 1) + "</span>" + face(g.id, g.name, 36) + '<div class="meta"><b>' + esc(g.name) + (g.id === S.cid ? " (tú)" : "") + "</b></div><b>" + g.pts + "</b></div>"; }).join("")
+      : '<p class="muted" style="margin:0 0 8px">Antes de cada canción sale una pregunta en la tele y aquí. Cuanto antes aciertes, más puntos.</p>') +
+    (host ? '<div class="field" style="margin:8px 0 0"><label>Pregunta antes de…</label><div class="chips wrap" role="group" aria-label="Frecuencia de preguntas">' +
+      [[1, "Cada canción"], [2, "Cada 2"], [3, "Cada 3"], [0, "Sin preguntas"]].map(function (o) { return '<button class="chip" type="button" data-every="' + o[0] + '" aria-pressed="' + (every === o[0]) + '">' + o[1] + "</button>"; }).join("") + "</div></div>" +
+      '<div class="tools"><button class="btn small" type="button" data-game="final">👑 Ver ganador final</button><button class="btn small sec" type="button" data-game="reset">Poner puntos a cero</button></div>' +
+      '<div class="switch"><span>Presentador con voz<small>' + (s.voice && s.voice.on ? "Activado" : "Desactivado") + '. La voz y el idioma se eligen en el panel de administrador</small></span><button class="tog" type="button" role="switch" aria-checked="' + !!(s.voice && s.voice.on) + '" data-game="voice" aria-label="Presentador con voz"></button></div>' : "");
+}
 function addCmd(cmd) {
   return send(cmd).then(function (r) {
     if (r.ok) toast(r.pos ? "¡Añadida! Vas en el puesto " + r.pos : "¡Añadida! Empieza ahora, mira la tele");
@@ -484,6 +531,15 @@ function bindView() {
       addCmd({ type: "add", url: u, title: t }).then(function (r) { if (r.ok) { document.getElementById("linkUrl").value = ""; document.getElementById("linkTitle").value = ""; } });
     });
   }
+  v.querySelectorAll("[data-every]").forEach(function (b) { b.addEventListener("click", function () { simple({ type: "game", action: "quiz", every: +b.dataset.every }, "Hecho"); }); });
+  v.querySelectorAll("[data-game=final]").forEach(function (b) { b.addEventListener("click", function () { simple({ type: "game", action: "final" }, function (r) { return r.later ? "El ganador sale en la tele al acabar esta canción" : "¡Mira la tele!"; }); }); });
+  v.querySelectorAll("[data-game=reset]").forEach(function (b) { b.addEventListener("click", function () { if (confirm("¿Poner los puntos de todos a cero?")) simple({ type: "game", action: "reset" }, "Puntos a cero"); }); });
+  v.querySelectorAll("[data-game=voice]").forEach(function (b) { b.addEventListener("click", function () { simple({ type: "game", action: "voice", on: b.getAttribute("aria-checked") !== "true" }); }); });
+  var vh = document.getElementById("voiceHere");
+  if (vh) vh.addEventListener("click", function () {
+    S.voiceHere = !S.voiceHere; vh.setAttribute("aria-checked", S.voiceHere);
+    if (S.voiceHere) { if (!window.speechSynthesis) { toast("Este navegador no tiene voz.", true); S.voiceHere = false; vh.setAttribute("aria-checked", "false"); return; } T.speak("¡Hola! Soy la voz de la fiesta.", { lang: (st().voice || {}).lang || "es-ES", gender: (st().voice || {}).gender || "f" }); toast("Deja este móvil con el volumen alto y la pantalla encendida"); }
+  });
   var prof = document.getElementById("prof");
   if (prof) {
     bindProfileInputs(prof);

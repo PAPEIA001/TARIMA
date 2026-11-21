@@ -146,7 +146,7 @@ var T = (function () {
 
   function topics(code) {
     var base = "tarima/v1/" + String(code).toUpperCase();
-    return { base: base, state: base + "/state", cmd: base + "/cmd", config: base + "/config", catalog: base + "/catalog",
+    return { base: base, state: base + "/state", cmd: base + "/cmd", config: base + "/config", catalog: base + "/catalog", say: base + "/say",
       av: function (cid) { return base + "/av/" + cid; }, avAll: base + "/av/+", res: function (cid) { return base + "/res/" + cid; } };
   }
 

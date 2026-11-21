@@ -8,11 +8,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=1795266638">
+<link rel="stylesheet" href="app.css?v=1795267360">
 <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
 <script>window.mqtt || document.write('<script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="shared.js?v=1795266638"></script>
+<script src="shared.js?v=1795267360"></script>
+<script src="trivia.js?v=1795267360"></script>
 <style>
 /* Admin panel: same visual language as the guest app, a list of party cards and a full-page editor. */
 .adm{max-width:760px;margin:0 auto;min-height:100%;padding:calc(env(safe-area-inset-top) + 16px) 16px 60px;display:grid;gap:16px;align-content:start}
@@ -106,10 +107,11 @@ function watchParties() {
   });
 }
 function saveIndex() { A.index.ts = Date.now(); A.conn.publish(T.adminTopic(A.h), A.index, true); }
+function voiceOf(p) { var v = p.voice || {}; return { on: v.on !== false, gender: v.gender || "f", lang: v.lang || "es-ES", where: v.where || "tv" }; }
 function publishConfig(p, photo) {
   return Promise.all([T.hash(p.code + ":" + T.pw(p.pw)), T.hash(p.code + ":" + T.pw(p.hostpw))]).then(function (h) {
     var cfg = { code: p.code, name: p.name, date: p.date || "", welcome: p.welcome || "", color: p.color || "rosa", intro: p.intro || "neon",
-      limit: p.limit !== false, musicLimit: p.musicLimit !== false, mode: p.mode || "karaoke", channels: A.index.channels || T.CHANNELS, bg: p.bg || "", key: A.index.key || "", photo: photo === undefined ? ((A.configs[p.code] || {}).photo || "") : photo,
+      limit: p.limit !== false, musicLimit: p.musicLimit !== false, mode: p.mode || "karaoke", quiz: p.quiz === undefined ? 1 : p.quiz, voice: voiceOf(p), phrases: p.phrases || [], channels: A.index.channels || T.CHANNELS, bg: p.bg || "", key: A.index.key || "", photo: photo === undefined ? ((A.configs[p.code] || {}).photo || "") : photo,
       pwHash: h[0], hostHash: h[1], v: 2, ts: Date.now() };
     A.configs[p.code] = cfg;
     A.conn.publish(T.topics(p.code).config, cfg, true);
@@ -196,6 +198,7 @@ function vEdit() {
   var p = A.edit ? findParty(A.edit) : null;
   var d = p || { name: "", date: "", welcome: "", color: "rosa", intro: "neon", limit: true, pw: "fiesta", hostpw: T.rand(4, "0123456789"), bg: "" };
   draftPhoto = undefined;
+  var vo = voiceOf(d);
   var cur = p && A.configs[p.code] && A.configs[p.code].photo;
   $app.innerHTML = '<div class="bar"><h1>' + (p ? "Editar fiesta" : "Nueva fiesta") + '</h1><button class="btn small sec" type="button" id="back">Cancelar</button></div>' +
     '<label class="photo' + (cur ? " has" : "") + '" id="phBox" for="phIn" style="' + (cur ? "background-image:url('" + cur + "')" : "") + '"><span>' + (cur ? "Cambiar foto" : "Añadir foto de la fiesta") + '</span></label>' +
@@ -212,13 +215,28 @@ function vEdit() {
     '<div class="field"><label for="eBg">Playlist de música de fondo (opcional)</label><input id="eBg" inputmode="url" value="' + esc(d.bg) + '" placeholder="Enlace de playlist de YouTube"></div>' +
     '<div class="switch"><span>Karaoke: máximo 2 canciones por persona<small>Para que cante todo el mundo</small></span><button class="tog" type="button" role="switch" id="eLim" aria-checked="' + (d.limit !== false) + '" aria-label="Límite de canciones en karaoke"></button></div>' +
     '<div class="switch"><span>Música: máximo 2 canciones por móvil<small>Desactívalo para que cada uno pida las que quiera</small></span><button class="tog" type="button" role="switch" id="eMLim" aria-checked="' + (d.musicLimit !== false) + '" aria-label="Límite de canciones en modo música"></button></div>' +
+    '<h2 style="margin:18px 0 4px;font-size:18px">Juego de preguntas</h2>' +
+    '<div class="field"><label for="eQuiz">Pregunta tipo concurso antes de…</label><select id="eQuiz">' + [[1, "Cada canción"], [2, "Cada 2 canciones"], [3, "Cada 3 canciones"], [0, "Sin preguntas"]].map(function (o) { return '<option value="' + o[0] + '"' + ((d.quiz === undefined ? 1 : d.quiz) === o[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + '</select><small class="muted">Solo en modo karaoke. 20 segundos para responder con botones A, B, C y D en el móvil. Preguntas sobre ' + T.quizArtists + ' artistas y de cultura musical.</small></div>' +
+    '<h2 style="margin:18px 0 4px;font-size:18px">Presentador con voz</h2>' +
+    '<div class="switch"><span>Presentador con voz<small>Presenta a cada cantante, lee las preguntas y anima</small></span><button class="tog" type="button" role="switch" id="eVoice" aria-checked="' + (vo.on !== false) + '" aria-label="Presentador con voz"></button></div>' +
+    '<div class="grid2"><div class="field"><label for="eGender">Voz</label><select id="eGender"><option value="f"' + (vo.gender !== "m" ? " selected" : "") + '>Chica</option><option value="m"' + (vo.gender === "m" ? " selected" : "") + '>Chico</option></select></div>' +
+    '<div class="field"><label for="eLang">Acento o idioma</label><select id="eLang">' + T.VOICE_LANGS.map(function (l) { return '<option value="' + l[0] + '"' + ((vo.lang || "es-ES") === l[0] ? " selected" : "") + ">" + l[1] + "</option>"; }).join("") + "</select></div></div>" +
+    '<div class="field"><label for="eWhere">Dónde suena la voz</label><select id="eWhere"><option value="tv"' + (vo.where !== "phone" ? " selected" : "") + '>En la tele</option><option value="phone"' + (vo.where === "phone" ? " selected" : "") + '>En el móvil del anfitrión (si la tele no tiene voz)</option></select><small class="muted">En el móvil, activa «Voz del presentador en este móvil» en la pestaña Fiesta.</small></div>' +
+    '<div class="field"><label for="ePhr">Tus frases para el presentador</label><textarea id="ePhr" rows="5" maxlength="2000" placeholder="¡Que no decaiga, {nombre}!&#10;¡Barra libre de canciones en {fiesta}!&#10;¿Quién se atreve con un dúo?">' + esc((d.phrases || []).join("\n")) + '</textarea><small class="muted">Una por línea. {nombre} pone el nombre de un invitado y {fiesta} el de la fiesta. Las dice entre canciones y cuando la tele está libre.</small></div>' +
+    '<button class="btn small sec" type="button" id="eTry" style="justify-self:start">▶︎ Probar la voz aquí</button>' +
     '<button class="btn" type="submit" style="margin-top:14px">' + (p ? "Guardar cambios" : "Crear fiesta") + "</button>" +
     (p ? '<button class="btn danger" type="button" id="eDel" style="margin-top:8px">Eliminar fiesta</button><p class="err" id="delMsg"></p>' : "") + "</form>";
   var color = d.color;
   document.getElementById("back").addEventListener("click", function () { A.view = p ? "party" : "list"; render(); });
   $app.querySelectorAll("[data-col]").forEach(function (b) { b.addEventListener("click", function () { color = b.dataset.col; $app.querySelectorAll("[data-col]").forEach(function (x) { x.setAttribute("aria-pressed", x === b); }); }); });
-  var lim = document.getElementById("eLim"), mlim = document.getElementById("eMLim");
-  [lim, mlim].forEach(function (t) { t.addEventListener("click", function () { t.setAttribute("aria-checked", t.getAttribute("aria-checked") !== "true"); }); });
+  var lim = document.getElementById("eLim"), mlim = document.getElementById("eMLim"), vtog = document.getElementById("eVoice");
+  document.getElementById("eTry").addEventListener("click", function () {
+    var lang = document.getElementById("eLang").value, own = document.getElementById("ePhr").value.split("\n").filter(function (x) { return x.trim(); });
+    var text = own.length ? own[0].replace(/\{nombre\}/gi, "Lucía").replace(/\{fiesta\}/gi, document.getElementById("eName").value || "la fiesta") : T.line(lang, "intro", { n: "Lucía", s: "Dancing Queen" });
+    if (!window.speechSynthesis) { toast("Este navegador no tiene voz.", true); return; }
+    T.speak(text, { lang: lang, gender: document.getElementById("eGender").value });
+  });
+  [lim, mlim, vtog].forEach(function (t) { t.addEventListener("click", function () { t.setAttribute("aria-checked", t.getAttribute("aria-checked") !== "true"); }); });
   document.getElementById("phIn").addEventListener("change", function (e) {
     var f = e.target.files && e.target.files[0]; if (!f) return;
     shrink(f).then(function (url) {
@@ -249,6 +267,9 @@ function vEdit() {
     rec.color = color; rec.intro = document.getElementById("eIntro").value; rec.pw = pw; rec.hostpw = hp; rec.bg = bg;
     rec.limit = lim.getAttribute("aria-checked") === "true"; rec.musicLimit = mlim.getAttribute("aria-checked") === "true";
     if (!rec.mode) rec.mode = "karaoke";
+    rec.quiz = +document.getElementById("eQuiz").value;
+    rec.voice = { on: vtog.getAttribute("aria-checked") === "true", gender: document.getElementById("eGender").value, lang: document.getElementById("eLang").value, where: document.getElementById("eWhere").value };
+    rec.phrases = document.getElementById("ePhr").value.split("\n").map(function (x) { return x.trim().slice(0, 160); }).filter(Boolean).slice(0, 30);
     if (!p) A.index.parties.push(rec);
     saveIndex(); watchParties();
     publishConfig(rec, draftPhoto).then(function () { A.sel = rec.code; A.view = "party"; render(); toast(p ? "Cambios guardados. La tele se actualiza sola." : "Fiesta creada"); });
