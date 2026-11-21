@@ -975,7 +975,7 @@ function runChallenge(kind, done) {
   var DUR = kind === "dance" ? 45 : 50;
   var head = '<div class="full"><div><div class="eyebrow">👑 El Rey de la Tarima · prueba</div>';
   if (kind === "dance") chal(head + '<h2>💃 ¡Duelo de baile! 🕺</h2><div class="vs"><div>' + faceHtml(pair2[0]) + "<b>" + esc(pair2[0].name) + '</b></div><div class="vsx">VS</div><div>' + faceHtml(pair2[1]) + "<b>" + esc(pair2[1].name) + "</b></div></div><p>" + DUR + " segundos bailando. Luego votáis desde el móvil. ¡El ganador se lleva 500 puntos!</p></div></div>");
-  else chal(head + "<h2>🧊 ¡Congelados!</h2><p class="vsx" style="color:var(--text)">Todo el mundo a bailar.</p><p>Cuando pare la música, ¡quietos como estatuas! Quien se mueva, fuera.</p></div></div>");
+  else chal(head + "<h2>🧊 ¡Congelados!</h2><p class='vsx' style='color:var(--text)'>Todo el mundo a bailar.</p><p>Cuando pare la música, ¡quietos como estatuas! Quien se mueva, fuera.</p></div></div>");
   T.sfx.drumroll(2);
   say(T.line(lang, "showman") + " " + (kind === "dance" ? T.line(lang, "dance", { n: pair2[0].name, m: pair2[1].name }) : T.line(lang, "freeze")));
   publish();
