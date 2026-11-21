@@ -98,3 +98,24 @@ h1,h2,h3{font-family:var(--display);margin:0;line-height:1.1;text-wrap:balance}
 .banner div{position:relative;padding:14px;display:grid;gap:2px}
 .banner b{font-family:var(--display);font-size:24px;line-height:1.1}
 .banner span{font-size:13px;opacity:.9}
+.chips.wrap{flex-wrap:wrap;overflow:visible;margin:4px 0 0;padding:0}
+.avimg{border-radius:50%;object-fit:cover;flex:none;vertical-align:middle;border:2px solid var(--accent)}
+.hello{display:flex;gap:12px;align-items:center;margin:14px 0 4px}
+.selfie{display:flex;gap:14px;align-items:center;background:var(--surface);border-radius:12px;padding:12px;margin-top:4px}
+.selfie.busy{opacity:.5}
+.selfiebtn{width:76px;height:76px;border-radius:50%;background:var(--surface2);border:2px dashed var(--accent);display:grid;place-items:center;overflow:hidden;flex:none;font-size:30px;cursor:pointer}
+.selfiebtn img{width:100%;height:100%;object-fit:cover}
+.selfie b{display:block;font-size:14.5px}
+.selfie small{font-size:12.5px;line-height:1.35;display:block}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:99px;margin-right:5px;background:var(--surface2);color:var(--text);vertical-align:1px}
+.tag.best{background:rgba(61,220,151,.18);color:var(--ok)}
+.tag.ads{background:rgba(255,181,71,.18);color:var(--accent2)}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.clap{border:0;background:var(--accent);border-radius:50%;width:40px;height:40px;font-size:20px;flex:none}
+.clap.pop{animation:clap .35s ease-out}
+@keyframes clap{50%{transform:scale(1.35)}}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.modes button{background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:12px;display:flex;gap:8px;align-items:center;justify-content:center}
+.modes button[aria-pressed="true"]{border-color:var(--accent)}
+.modes .mi{font-size:22px}
+.modes b{font-family:var(--display);font-size:16px}

@@ -8,11 +8,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=1795201349">
+<link rel="stylesheet" href="app.css?v=1795266638">
 <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
 <script>window.mqtt || document.write('<script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="shared.js?v=1795201349"></script>
+<script src="shared.js?v=1795266638"></script>
 <style>
 /* Admin panel: same visual language as the guest app, a list of party cards and a full-page editor. */
 .adm{max-width:760px;margin:0 auto;min-height:100%;padding:calc(env(safe-area-inset-top) + 16px) 16px 60px;display:grid;gap:16px;align-content:start}
@@ -47,6 +47,14 @@
 .linkrow code{flex:1;min-width:0;background:var(--surface2);padding:9px 10px;border-radius:8px;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #qr{background:#fff;padding:8px;border-radius:10px;width:148px;height:148px}
 #qr img,#qr canvas{width:100%!important;height:100%!important}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modes button{background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:14px;text-align:left;display:grid;gap:3px}
+.modes button[aria-pressed="true"]{border-color:var(--accent);background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 18%,transparent),var(--surface))}
+.modes .mi{font-size:26px;line-height:1}
+.modes b{font-family:var(--display);font-size:17px}
+.modes small{color:var(--muted);font-size:12.5px}
+.chrow{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.chrow span{flex:1;min-width:0}
 .danger{background:none;border:1px solid var(--accent);color:var(--accent)}
 .tabsx{display:flex;gap:8px}
 textarea{background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:12px;outline:none;font:inherit;font-size:16px;width:100%;resize:vertical;min-height:70px;color:var(--text)}
@@ -101,7 +109,7 @@ function saveIndex() { A.index.ts = Date.now(); A.conn.publish(T.adminTopic(A.h)
 function publishConfig(p, photo) {
   return Promise.all([T.hash(p.code + ":" + T.pw(p.pw)), T.hash(p.code + ":" + T.pw(p.hostpw))]).then(function (h) {
     var cfg = { code: p.code, name: p.name, date: p.date || "", welcome: p.welcome || "", color: p.color || "rosa", intro: p.intro || "neon",
-      limit: p.limit !== false, bg: p.bg || "", key: A.index.key || "", photo: photo === undefined ? ((A.configs[p.code] || {}).photo || "") : photo,
+      limit: p.limit !== false, musicLimit: p.musicLimit !== false, mode: p.mode || "karaoke", channels: A.index.channels || T.CHANNELS, bg: p.bg || "", key: A.index.key || "", photo: photo === undefined ? ((A.configs[p.code] || {}).photo || "") : photo,
       pwHash: h[0], hostHash: h[1], v: 2, ts: Date.now() };
     A.configs[p.code] = cfg;
     A.conn.publish(T.topics(p.code).config, cfg, true);
@@ -202,13 +210,15 @@ function vEdit() {
     '<div class="grid2"><div class="field"><label for="ePw">Contraseña para invitados</label><input id="ePw" maxlength="30" value="' + esc(d.pw) + '" autocomplete="off"></div>' +
     '<div class="field"><label for="eHost">Clave de anfitrión</label><input id="eHost" maxlength="30" value="' + esc(d.hostpw) + '" autocomplete="off"></div></div>' +
     '<div class="field"><label for="eBg">Playlist de música de fondo (opcional)</label><input id="eBg" inputmode="url" value="' + esc(d.bg) + '" placeholder="Enlace de playlist de YouTube"></div>' +
-    '<div class="switch"><span>Máximo 2 canciones por persona<small>Para que cante todo el mundo</small></span><button class="tog" type="button" role="switch" id="eLim" aria-checked="' + (d.limit !== false) + '" aria-label="Límite de canciones"></button></div>' +
+    '<div class="switch"><span>Karaoke: máximo 2 canciones por persona<small>Para que cante todo el mundo</small></span><button class="tog" type="button" role="switch" id="eLim" aria-checked="' + (d.limit !== false) + '" aria-label="Límite de canciones en karaoke"></button></div>' +
+    '<div class="switch"><span>Música: máximo 2 canciones por móvil<small>Desactívalo para que cada uno pida las que quiera</small></span><button class="tog" type="button" role="switch" id="eMLim" aria-checked="' + (d.musicLimit !== false) + '" aria-label="Límite de canciones en modo música"></button></div>' +
     '<button class="btn" type="submit" style="margin-top:14px">' + (p ? "Guardar cambios" : "Crear fiesta") + "</button>" +
     (p ? '<button class="btn danger" type="button" id="eDel" style="margin-top:8px">Eliminar fiesta</button><p class="err" id="delMsg"></p>' : "") + "</form>";
   var color = d.color;
   document.getElementById("back").addEventListener("click", function () { A.view = p ? "party" : "list"; render(); });
   $app.querySelectorAll("[data-col]").forEach(function (b) { b.addEventListener("click", function () { color = b.dataset.col; $app.querySelectorAll("[data-col]").forEach(function (x) { x.setAttribute("aria-pressed", x === b); }); }); });
-  var lim = document.getElementById("eLim"); lim.addEventListener("click", function () { lim.setAttribute("aria-checked", lim.getAttribute("aria-checked") !== "true"); });
+  var lim = document.getElementById("eLim"), mlim = document.getElementById("eMLim");
+  [lim, mlim].forEach(function (t) { t.addEventListener("click", function () { t.setAttribute("aria-checked", t.getAttribute("aria-checked") !== "true"); }); });
   document.getElementById("phIn").addEventListener("change", function (e) {
     var f = e.target.files && e.target.files[0]; if (!f) return;
     shrink(f).then(function (url) {
@@ -237,7 +247,8 @@ function vEdit() {
     var rec = p || { code: newCode() };
     rec.name = name; rec.date = document.getElementById("eDate").value; rec.welcome = document.getElementById("eWel").value.trim();
     rec.color = color; rec.intro = document.getElementById("eIntro").value; rec.pw = pw; rec.hostpw = hp; rec.bg = bg;
-    rec.limit = lim.getAttribute("aria-checked") === "true";
+    rec.limit = lim.getAttribute("aria-checked") === "true"; rec.musicLimit = mlim.getAttribute("aria-checked") === "true";
+    if (!rec.mode) rec.mode = "karaoke";
     if (!p) A.index.parties.push(rec);
     saveIndex(); watchParties();
     publishConfig(rec, draftPhoto).then(function () { A.sel = rec.code; A.view = "party"; render(); toast(p ? "Cambios guardados. La tele se actualiza sola." : "Fiesta creada"); });
@@ -277,6 +288,9 @@ function vParty() {
     '<div class="hero-ph" style="' + (c && c.photo ? "background-image:url('" + c.photo + "')" : "") + '"><div><span class="pill' + (live ? " on" : "") + '">' + (live ? "En directo" : "Tele apagada") + "</span><h1>" + esc(p.name) + "</h1>" +
     (p.date ? '<div style="font-size:14px;opacity:.9">' + esc(fmtDate(p.date)) + "</div>" : "") + "</div></div>" +
     (p.welcome ? '<p style="margin:0">' + esc(p.welcome) + "</p>" : "") +
+    '<div class="modes" role="group" aria-label="Modo de la fiesta">' +
+      '<button type="button" data-mode="karaoke" aria-pressed="' + ((p.mode || "karaoke") === "karaoke") + '"><span class="mi">🎤</span><b>Modo karaoke</b><small>Intro con nombre, karaokes y aplausos</small></button>' +
+      '<button type="button" data-mode="music" aria-pressed="' + (p.mode === "music") + '"><span class="mi">🎵</span><b>Modo música</b><small>La gente pide canciones normales' + (p.musicLimit !== false ? ", 2 por móvil" : ", sin límite") + "</small></button></div>" +
     '<div class="box"><div class="kv"><span>Código</span><b>' + esc(p.code) + '</b><span>Invitados</span><b>' + esc(p.pw) + '</b><span>Anfitrión</span><b>' + esc(p.hostpw) + "</b></div></div>" +
     '<div class="box"><b>Abrir en la tele</b><span class="muted" style="font-size:13px">Escribe esta dirección en el navegador de la tele y pulsa Empezar.</span>' +
     '<div class="linkrow"><code>' + esc(tvUrl(p.code)) + '</code><button class="btn small sec" type="button" data-copy="' + esc(tvUrl(p.code)) + '">Copiar</button></div>' +
@@ -289,20 +303,53 @@ function vParty() {
       : '<p class="muted" style="margin:0">Cuando la tele tenga la fiesta abierta verás aquí quién canta y la cola.</p>');
   document.getElementById("back").addEventListener("click", function () { T.applyColor("rosa"); A.view = "list"; render(); });
   document.getElementById("edit").addEventListener("click", function () { A.edit = p.code; A.view = "edit"; render(); });
+  $app.querySelectorAll(".modes [data-mode]").forEach(function (b) { b.addEventListener("click", function () {
+    if (p.mode === b.dataset.mode) return;
+    p.mode = b.dataset.mode; saveIndex(); publishConfig(p).then(function () { render(true); toast(p.mode === "music" ? "Modo música: la tele cambia ya" : "Modo karaoke: la tele cambia ya"); });
+  }); });
   $app.querySelectorAll("[data-copy]").forEach(function (b) { b.addEventListener("click", function () {
     if (navigator.clipboard) navigator.clipboard.writeText(b.dataset.copy).then(function () { toast("Enlace copiado"); }, function () { toast("No se pudo copiar", true); });
   }); });
   if (typeof QRCode !== "undefined") new QRCode(document.getElementById("qr"), { text: guestUrl(p.code), width: 256, height: 256, correctLevel: QRCode.CorrectLevel.M });
 }
 function vSettings() {
+  var chs = A.index.channels || T.CHANNELS.slice();
   $app.innerHTML = '<div class="bar"><h1>Ajustes</h1><button class="btn small sec" type="button" id="back">Volver</button></div>' +
-    '<div class="box"><b>Búsqueda en YouTube</b><span class="muted" style="font-size:13px">Con una clave gratuita de la YouTube Data API los invitados pueden buscar cualquier canción. Se aplica a todas tus fiestas.</span>' +
-    '<div class="field" style="margin:0"><label for="sKey">Clave de API</label><input id="sKey" autocomplete="off" value="' + esc(A.index.key || "") + '" placeholder="AIza…"></div><button class="btn small" type="button" id="sSave">Guardar</button></div>' +
+    '<div class="box"><b>Clave de YouTube</b><span class="muted" style="font-size:13px">Necesaria para el catálogo de canales y para buscar en todo YouTube. Se aplica a todas tus fiestas.</span>' +
+    '<div class="field" style="margin:0"><label for="sKey">Clave de API</label><input id="sKey" autocomplete="off" value="' + esc(A.index.key || "") + '" placeholder="AIza…"></div><button class="btn small" type="button" id="sSave">Guardar</button><p class="note" id="keyMsg" style="margin:0"></p></div>' +
+    '<div class="box"><b>Canales de karaoke de confianza</b><span class="muted" style="font-size:13px">Sus últimos karaokes forman el catálogo de tus fiestas y salen primero en las búsquedas con la etiqueta «Mejor versión». El catálogo se renueva solo cada día.</span>' +
+    chs.map(function (c, i) { return '<div class="chrow"><span><b style="font-size:14.5px">' + esc(c.name) + '</b><br><small class="muted">' + esc(c.handle || c.id || c.q || "") + '</small></span><button class="icon-btn" type="button" data-delch="' + i + '" aria-label="Quitar ' + esc(c.name) + '">✕</button></div>'; }).join("") +
+    '<div class="field" style="margin:8px 0 0"><label for="chNew">Añadir canal</label><input id="chNew" placeholder="Enlace del canal o @nombre, p. ej. https://youtube.com/@singkingkaraoke"></div>' +
+    '<div class="inline"><button class="btn small sec" type="button" id="chAdd">Añadir canal</button><button class="btn small" type="button" id="sync">Actualizar catálogo ahora</button></div><p class="note" id="syncMsg" style="margin:0"></p></div>' +
     '<div class="box"><b>Cuenta</b><span class="muted" style="font-size:13px">Usuario: ' + esc(A.user) + '</span><button class="btn small sec" type="button" id="out">Cerrar sesión</button></div>';
   document.getElementById("back").addEventListener("click", function () { A.view = "list"; render(); });
+  var pushAll = function () { return Promise.all((A.index.parties || []).map(function (p) { return publishConfig(p); })); };
   document.getElementById("sSave").addEventListener("click", function () {
-    A.index.key = document.getElementById("sKey").value.trim(); saveIndex();
-    Promise.all((A.index.parties || []).map(function (p) { return publishConfig(p); })).then(function () { toast("Clave guardada en todas tus fiestas"); });
+    var k = document.getElementById("sKey").value.trim(), msg = document.getElementById("keyMsg");
+    msg.textContent = "Comprobando la clave…";
+    (k ? T.ytGet("videos", { part: "id", id: "9Lxm0iSnKNc" }, k) : Promise.resolve()).then(function () {
+      A.index.key = k; saveIndex(); return pushAll();
+    }).then(function () { msg.textContent = k ? "Clave correcta y guardada en todas tus fiestas." : "Clave quitada."; toast("Guardado"); })
+      .catch(function (e) { msg.textContent = "YouTube rechaza esta clave (" + e.message + "). Revisa que la API de YouTube esté activada y que la clave sea correcta."; });
+  });
+  $app.querySelectorAll("[data-delch]").forEach(function (b) { b.addEventListener("click", function () { chs.splice(+b.dataset.delch, 1); A.index.channels = chs; saveIndex(); pushAll(); render(); }); });
+  document.getElementById("chAdd").addEventListener("click", function () {
+    var v = document.getElementById("chNew").value.trim(); if (!v) return;
+    var m = v.match(/\/channel\/(UC[\w-]{22})/), h = v.match(/(@[\w.-]+)/);
+    var c = m ? { name: v, id: m[1] } : h ? { name: h[1].slice(1), handle: h[1] } : { name: v, q: v };
+    chs.push(c); A.index.channels = chs; saveIndex(); pushAll(); render(); toast("Canal añadido. Pulsa «Actualizar catálogo ahora».");
+  });
+  document.getElementById("sync").addEventListener("click", function () {
+    var msg = document.getElementById("syncMsg");
+    if (!A.index.key) { msg.textContent = "Primero guarda la clave de YouTube."; return; }
+    msg.textContent = "Leyendo los canales… (tarda unos segundos)";
+    T.syncCatalog(A.index.key, chs).then(function (r) {
+      if (!r.items.length) { msg.textContent = "No he encontrado karaokes en esos canales. Revisa la clave y los canales."; return; }
+      chs.forEach(function (c) { var f = r.channels.filter(function (x) { return x.name === c.name; })[0]; if (f && !c.id) c.id = f.id; });
+      A.index.channels = chs; saveIndex(); pushAll();
+      (A.index.parties || []).forEach(function (p) { A.conn.publish(T.topics(p.code).catalog, { items: r.items, channels: r.channels, at: r.at, req: [], ads: {}, ts: Date.now() }, true); });
+      msg.textContent = "Catálogo actualizado: " + r.items.length + " karaokes de " + r.channels.length + " canales.";
+    }).catch(function (e) { msg.textContent = "No se ha podido actualizar (" + e.message + ")."; });
   });
   document.getElementById("out").addEventListener("click", function () { T.store("admin", null); location.reload(); });
 }

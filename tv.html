@@ -10,7 +10,7 @@
 <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
 <script>window.mqtt || document.write('<script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="shared.js?v=1795201349"></script>
+<script src="shared.js?v=1795266638"></script>
 <style>
 /* TV screen: full-window stage with four layers (idle, intro, playing, applause). Sizes in vw so it scales to any TV. */
 :root{
@@ -45,12 +45,18 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
 .bgcard small{font-size:1.15vw;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
 .bgcard .t{font-family:var(--display);font-size:2.2vw;font-weight:700}
 .bgcard .cta{font-size:1.7vw;color:var(--accent2);font-weight:700}
+.faces{display:flex;flex-wrap:wrap;gap:.6vw}
+.faces img,.faces span{width:3.6vw;height:3.6vw;border-radius:50%;object-fit:cover;border:.2vw solid var(--accent);display:grid;place-items:center;font-weight:800;font-size:1.4vw;background:#2a1530}
+.ticker{font-size:1.3vw;color:var(--accent2);font-weight:700;line-height:1.3}
+.clapfx{position:fixed;z-index:15;font-size:4vw;pointer-events:none;animation:rise 1.6s ease-out forwards}
+@keyframes rise{from{transform:translateY(0) scale(.6);opacity:1}to{transform:translateY(-40vh) scale(1.3);opacity:0}}
 .bgvid{aspect-ratio:16/9;width:100%;border-radius:.8vw;overflow:hidden;background:#000}
 .bgvid iframe{width:100%;height:100%;display:block}
 
 /* intro */
 #L-intro{display:grid;place-items:center;text-align:center;padding:4vw}
 .eyebrow{font-size:1.8vw;letter-spacing:.3em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+#iPhoto.big{width:22vw!important;height:22vw!important;border-width:.5vw!important;animation:pop .9s cubic-bezier(.2,1.6,.4,1) both}
 #iName{font-family:var(--display);font-weight:800;font-size:12vw;line-height:.95;letter-spacing:-.03em;margin:1.5vw 0;word-break:break-word}
 #iSong{font-size:2.6vw;font-weight:700}
 #iSong span{color:var(--muted);font-weight:500}
@@ -73,6 +79,8 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
 .singer{background:linear-gradient(135deg,rgba(255,61,127,.92),rgba(138,43,214,.92));border-radius:1vw;padding:1.6vw;display:grid;gap:.4vw}
 .singer small{font-size:1.05vw;letter-spacing:.15em;text-transform:uppercase;font-weight:700;opacity:.9}
 .singer b{font-family:var(--display);font-size:3.4vw;line-height:1;word-break:break-word}
+#L-play.music .singer{background:linear-gradient(135deg,rgba(61,184,255,.9),rgba(61,220,151,.85))}
+#L-play.music .singer b{font-size:2.4vw;line-height:1.1}
 .singer span{font-size:1.25vw;opacity:.92}
 .upnext{background:rgba(255,255,255,.06);border-radius:1vw;padding:1.3vw;display:grid;align-content:start;gap:1vw;overflow:hidden}
 .upnext small,.mini-join small{font-size:1vw;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);font-weight:700}
@@ -88,7 +96,7 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
 
 /* applause */
 #L-outro{display:grid;place-items:center;text-align:center;background:radial-gradient(circle,rgba(255,181,71,.18),transparent 60%)}
-#L-outro h2{font-size:8vw;font-weight:800;letter-spacing:-.02em}
+#L-outro h2{font-size:6vw;max-width:90vw;margin:0 auto;font-weight:800;letter-spacing:-.02em}
 #L-outro p{font-size:2.4vw;color:var(--muted);margin:1vw 0 0}
 
 /* notices, buttons, setup */
@@ -134,21 +142,22 @@ h1,h2{font-family:var(--display);margin:0;line-height:1.05}
       <div class="bgvid" id="bgwrap"><div id="ytbg"></div></div>
       <div class="t" id="bgTitle">Sin música de fondo</div>
       <div class="cta" id="idleCta">La cola está vacía. ¡Sé el primero!</div>
+      <div class="faces" id="faces"></div>
     </div>
   </section>
   <section class="layer" id="L-intro">
-    <div><img id="iPhoto" alt="" style="display:none;width:9vw;height:9vw;border-radius:50%;object-fit:cover;margin:0 auto 1.6vw;border:.3vw solid var(--accent);box-shadow:0 0 3vw var(--accent)"><div class="eyebrow">Sube a la tarima</div><div id="iName"></div><div id="iSong"></div><div id="iCount"></div></div>
+    <div><img id="iPhoto" alt="" style="display:none;width:9vw;height:9vw;border-radius:50%;object-fit:cover;margin:0 auto 1.6vw;border:.3vw solid var(--accent);box-shadow:0 0 3vw var(--accent)"><div class="eyebrow" id="iEyebrow">Sube a la tarima</div><div id="iName"></div><div id="iSong"></div><div id="iCount"></div></div>
   </section>
   <section class="layer" id="L-play">
     <div class="video"><div id="ytmain"></div></div>
     <div class="side">
-      <div class="singer"><small>Ahora canta</small><b id="pName"></b><span id="pSong"></span></div>
-      <div class="upnext" id="pNext"></div>
+      <div class="singer"><img id="pAv" alt="" style="display:none;width:7vw;height:7vw;border-radius:50%;object-fit:cover;border:.25vw solid #fff;margin-bottom:.4vw"><small id="pLabel">Ahora canta</small><b id="pName"></b><span id="pSong"></span><span id="pClaps" style="font-size:1.6vw;font-weight:700"></span></div>
+      <div class="upnext"><div id="pNext" style="display:grid;gap:1vw"></div><div class="ticker" id="ticker"></div></div>
       <div class="mini-join"><div class="qrbox" id="qrSmall"></div><div style="min-width:0"><small id="partySmall" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></small><small>Pide la tuya</small><b id="codeSmall"></b></div></div>
     </div>
     <div class="prog"><span id="pt">0:00</span><div class="track"><i id="pbar"></i></div><span id="pd">0:00</span></div>
   </section>
-  <section class="layer" id="L-outro"><div><h2 id="oTitle"></h2><p id="oNext"></p></div></section>
+  <section class="layer" id="L-outro"><div><img id="oAv" alt="" style="display:none;width:16vw;height:16vw;border-radius:50%;object-fit:cover;margin:0 auto 2vw;border:.5vw solid var(--accent)"><h2 id="oTitle"></h2><p id="oNext"></p></div></section>
 </div>
 <div id="notice" role="status"></div>
 <button id="playFix" class="big" type="button">¿No se mueve el vídeo? Pulsa OK</button>
@@ -206,10 +215,14 @@ function saveCfg() { if (!ADMIN) T.store("tv", cfg); }
 saveCfg();
 
 var P = T.store("party." + cfg.code) || { queue: [], guests: [] };
-if (P.now) { P.queue.unshift(P.now); P.now = null; }   // a song cut off by a reload starts again
+if (!P.mqueue) P.mqueue = [];
+if (!cfg.mode) cfg.mode = "karaoke";
+if (cfg.musicLimit === undefined) cfg.musicLimit = true;
+function Q() { return cfg.mode === "music" ? P.mqueue : P.queue; }
+if (P.now) { (P.now.kind === "music" ? P.mqueue : P.queue).unshift(P.now); P.now = null; }   // a song cut off by a reload starts again
 var now = null, phase = "idle", bgOn = true, bgTitle = "", H = {}, conn = null, tp = T.topics(cfg.code), gotConfig = false;
 var mainP = null, bgP = null, ytReady = false, started = false, timers = [], searchCache = {};
-function saveParty() { T.store("party." + cfg.code, { queue: P.queue, guests: P.guests, now: now }); }
+function saveParty() { T.store("party." + cfg.code, { queue: P.queue, mqueue: P.mqueue, guests: P.guests, history: P.history || [], now: now }); }
 var guestUrl = T.siteBase() + "?p=" + cfg.code;
 
 /* ---------- screens ---------- */
@@ -221,7 +234,7 @@ function showSetup() {
   $("start").classList.remove("on"); $("setup").classList.add("on"); $("fName").focus();
 }
 function showStart() {
-  $("sTitle").textContent = cfg.name; $("sCode").textContent = cfg.code; $("sQueue").textContent = P.queue.length;
+  $("sTitle").textContent = cfg.name; $("sCode").textContent = cfg.code; $("sQueue").textContent = Q().length;
   if (ADMIN) {
     $("sPw").parentNode.style.display = "none"; $("sHost").parentNode.style.display = "none"; $("sCfg").style.display = "none";
     $("sNet").textContent = !gotConfig ? "Buscando la fiesta en el servidor…" : "Las contraseñas y la foto se cambian desde tu panel de administrador; la tele se actualiza sola.";
@@ -253,6 +266,8 @@ function localHashes() {
 }
 function onMessage(topic, m) {
   if (topic === tp.config) { applyConfig(m); return; }
+  if (topic === tp.catalog) { onCatalog(m); return; }
+  if (topic.indexOf(tp.base + "/av/") === 0) { if (m && m.img) { AV[topic.split("/").pop()] = m.img; paintGuests(); } return; }
   if (started) onCmd(topic, m);
 }
 // Settings published by the admin panel. They apply live, even mid-party.
@@ -262,6 +277,10 @@ function applyConfig(m) {
   var oldBg = cfg.bg;
   ["name", "intro", "color", "photo", "welcome", "key", "bg"].forEach(function (k) { if (m[k] !== undefined) cfg[k] = m[k]; });
   if (typeof m.limit === "boolean") cfg.limit = m.limit;
+  if (typeof m.musicLimit === "boolean") cfg.musicLimit = m.musicLimit;
+  if (m.channels && m.channels.length) cfg.channels = m.channels;
+  if (m.mode && m.mode !== cfg.mode) { if (started) setMode(m.mode); else cfg.mode = m.mode; }
+  if (started) maybeSync();
   H.pw = m.pwHash; H.host = m.hostHash;
   T.applyColor(cfg.color); paintJoin();
   if (!started) showStart();
@@ -278,7 +297,8 @@ function go() {
   paintJoin(); publish();
   whenPlayers(function () {
     if (cfg.bg) bgLoad(cfg.bg);
-    if (P.queue.length) startNext(); else toIdle();
+    if (Q().length) startNext(); else toIdle();
+    setTimeout(maybeSync, 3000);
   });
 }
 
@@ -369,18 +389,27 @@ function toIdle() {
   try { mainP.stopVideo(); } catch (e) {}
   layer("L-idle"); hidePlayFix();
   $("bgTitle").textContent = cfg.bg ? (bgTitle || "Música de fondo") : "Sin música de fondo";
-  $("idleCta").textContent = cfg.bg ? "La cola está vacía. ¡Sé el primero!" : "La cola está vacía. El anfitrión puede poner música desde la pestaña Música.";
-  applyBg(); saveParty(); publish();
+  $("idleCta").textContent = cfg.mode === "music" ? "Modo música: pide canciones desde el móvil." : cfg.bg ? "La cola está vacía. ¡Sé el primero!" : "La cola está vacía. El anfitrión puede poner música desde la pestaña Música.";
+  $("idleSub").textContent = cfg.mode === "music" ? "Modo música. Escanea el código y pide tus canciones." : (cfg.welcome || "Escanea el código con el móvil y pide tu canción.");
+  applyBg(); saveParty(); publish(); paintGuests();
+  if (cfg.autoOn) scheduleAuto();
 }
 function startNext() {
   clearTimers(); hidePlayFix();
   try { mainP.stopVideo(); } catch (e) {}
-  var n = P.queue.shift();
+  var n = Q().shift();
   if (!n) { toIdle(); return; }
-  now = n; now.idx = 0; phase = "intro";
+  now = n; now.idx = 0; now.claps = 0;
+  P.history = (P.history || []).concat([now.songId]).slice(-300);
+  if (cfg.mode === "music") { phase = "playing"; applyBg(); playNow(); saveParty(); return; }
+  phase = "intro";
   applyBg();
   var L = $("L-intro"); L.className = "layer on st-" + cfg.intro;
   $("iName").textContent = now.singer;
+  var avi = AV[now.singerId] || cfg.photo;
+  $("iPhoto").style.display = avi ? "block" : "none"; if (avi) $("iPhoto").src = avi;
+  $("iPhoto").classList.toggle("big", !!AV[now.singerId]);
+  $("iEyebrow").textContent = now.auto ? "🎲 ¡Te ha tocado!" : "Sube a la tarima";
   $("iSong").innerHTML = esc(now.t) + (now.a ? " <span>· " + esc(now.a) + "</span>" : "");
   layer("L-intro"); L.className = "layer on st-" + cfg.intro;
   // restart the name animation each time
@@ -393,6 +422,7 @@ function startNext() {
 function playNow() {
   if (!now) return;
   phase = "playing"; paintPlay(); layer("L-play");
+  if (!now.idx) now.ids.sort(function (a, b) { return (adSet[a] ? 1 : 0) - (adSet[b] ? 1 : 0); });
   mainP.loadVideoById(now.ids[now.idx || 0]);
   watchdog(); publish();
 }
@@ -408,16 +438,24 @@ function hidePlayFix() { $("playFix").style.display = "none"; }
 $("playFix").addEventListener("click", function () { hidePlayFix(); try { mainP.playVideo(); } catch (e) {} });
 function paintPlay() {
   if (!now) return;
-  $("pName").textContent = now.singer;
-  $("pSong").textContent = now.t + (now.a ? " · " + now.a : "");
-  var nx = P.queue.slice(0, 4);
-  $("pNext").innerHTML = "<small>Después</small>" + (nx.length ? nx.map(function (q) { return '<div class="it"><b>' + esc(q.singer) + "</b><span>" + esc(q.t) + "</span></div>"; }).join("") :
+  var music = cfg.mode === "music";
+  $("L-play").classList.toggle("music", music);
+  $("pLabel").textContent = music ? "Sonando · pedida por " + now.singer : "Ahora canta";
+  $("pName").textContent = music ? now.t : now.singer;
+  $("pSong").textContent = music ? (now.a || "") : now.t + (now.a ? " · " + now.a : "");
+  var pav = !music && AV[now.singerId]; $("pAv").style.display = pav ? "block" : "none"; if (pav) $("pAv").src = pav;
+  $("pClaps").textContent = !music && now.claps ? "👏 " + now.claps : "";
+  var nx = Q().slice(0, 4);
+  $("pNext").innerHTML = "<small>Después</small>" + (nx.length ? nx.map(function (q) { return '<div class="it"><b>' + esc(music ? q.t : q.singer) + "</b><span>" + esc(music ? "Pide " + q.singer : q.t) + "</span></div>"; }).join("") :
     '<div class="it"><span>Nadie más en cola. ¡Pide la tuya!</span></div>');
 }
 function outro() {
+  if (cfg.mode === "music") { startNext(); return; }
   clearTimers(); phase = "outro";
-  $("oTitle").textContent = "¡Aplausos para " + now.singer + "!";
-  var nx = P.queue[0];
+  var sg = P.guests.filter(function (x) { return x.id === now.singerId; })[0]; if (sg) sg.sung = (sg.sung || 0) + 1;
+  $("oTitle").textContent = verdict(now);
+  var oav = AV[now.singerId]; $("oAv").style.display = oav ? "block" : "none"; if (oav) $("oAv").src = oav;
+  var nx = Q()[0];
   $("oNext").textContent = nx ? "Ahora: " + nx.singer + " con «" + nx.t + "»" : "La tarima queda libre. ¿Quién se anima?";
   layer("L-outro"); publish();
   later(startNext, 4500);
@@ -431,7 +469,7 @@ setInterval(function () {
 }, 500);
 
 /* ---------- sync ---------- */
-function pick(q) { return { qid: q.qid, songId: q.songId || null, t: q.t, a: q.a || "", singer: q.singer, singerId: q.singerId }; }
+function pick(q) { return { qid: q.qid, songId: q.songId || null, t: q.t, a: q.a || "", singer: q.singer, singerId: q.singerId, vid: q.ids ? q.ids[q.idx || 0] : null, auto: !!q.auto }; }
 function publish() {
   if (!conn) return;
   var n = null;
@@ -440,8 +478,9 @@ function publish() {
     if (phase === "playing" && mainP && mainP.getCurrentTime) { n.pos = Math.round(mainP.getCurrentTime() || 0); n.dur = Math.round(mainP.getDuration() || 0); }
   }
   conn.publish(tp.state, {
-    ts: Date.now(), name: cfg.name, code: cfg.code, now: n, queue: P.queue.map(pick), guests: P.guests,
-    canSearch: !!cfg.key, limit: cfg.limit, intro: cfg.intro, bg: { set: !!cfg.bg, on: bgOn, title: bgTitle }
+    ts: Date.now(), name: cfg.name, code: cfg.code, now: n, queue: Q().map(pick), mode: cfg.mode, autoOn: !!cfg.autoOn, catAt: CAT.at || 0,
+    guests: P.guests.map(function (g) { return { id: g.id, name: g.name, host: g.host, sung: g.sung || 0 }; }),
+    canSearch: !!cfg.key, limit: cfg.mode === "music" ? cfg.musicLimit : cfg.limit, ads: now ? !!adSet[now.ids[now.idx || 0]] : false, intro: cfg.intro, bg: { set: !!cfg.bg, on: bgOn, title: bgTitle }
   }, true);
 }
 setInterval(publish, 5000);
@@ -454,13 +493,15 @@ function onCmd(topic, cmd) {
   var host = role === "host";
   var name = String(cmd.name || "Invitado").slice(0, 16);
   var g = P.guests.filter(function (x) { return x.id === cmd.cid; })[0];
-  if (!g) { g = { id: cmd.cid, name: name, host: host }; P.guests.push(g); } else { g.name = name; g.host = host; }
+  if (!g) { g = { id: cmd.cid, name: name, host: host, sung: 0 }; P.guests.push(g); } else { g.name = name; g.host = host; }
+  if (cmd.type === "join") { g.tastes = (cmd.tastes || []).slice(0, 10); g.artists = String(cmd.artists || "").slice(0, 200); }
   var changed = true;
   switch (cmd.type) {
     case "join":
       reply(cmd, { ok: true, host: host }); break;
     case "add": {
-      var entry = { qid: T.rand(8), singer: name, singerId: cmd.cid };
+      var entry = { qid: T.rand(8), singer: name, singerId: cmd.cid, kind: cfg.mode };
+      if (cmd.songId && cfg.mode === "music") { reply(cmd, { ok: false, err: "musiconly" }); return; }
       if (cmd.songId) {
         var s = T.CATALOG.filter(function (x) { return x.id === cmd.songId; })[0];
         if (!s) { reply(cmd, { ok: false, err: "badurl" }); return; }
@@ -471,25 +512,26 @@ function onCmd(topic, cmd) {
         entry.songId = "yt:" + vid; entry.ids = [vid];
         entry.t = String(cmd.title || "").slice(0, 80) || "Vídeo de YouTube"; entry.a = String(cmd.ch || "").slice(0, 60);
         entry.fromLink = true; entry.titled = !!cmd.title;
+        if (cfg.mode === "karaoke") remember({ vid: vid, t: entry.t, ch: entry.a, by: name });
       }
-      var mineQ = P.queue.filter(function (q) { return q.singerId === cmd.cid; });
+      var mineQ = Q().filter(function (q) { return q.singerId === cmd.cid; });
       if (mineQ.some(function (q) { return q.songId === entry.songId; })) { reply(cmd, { ok: false, err: "dup" }); return; }
-      if (cfg.limit && !host && mineQ.length >= 2) { reply(cmd, { ok: false, err: "limit" }); return; }
-      P.queue.push(entry);
-      reply(cmd, { ok: true, pos: phase === "idle" ? 0 : P.queue.length });
+      if ((cfg.mode === "music" ? cfg.musicLimit : cfg.limit) && !host && mineQ.length >= 2) { reply(cmd, { ok: false, err: "limit" }); return; }
+      Q().push(entry);
+      reply(cmd, { ok: true, pos: phase === "idle" ? 0 : Q().length });
       if (phase === "idle") startNext(); else if (phase === "playing") paintPlay();
       break;
     }
     case "remove": {
-      var i = P.queue.findIndex(function (q) { return q.qid === cmd.qid; });
+      var i = Q().findIndex(function (q) { return q.qid === cmd.qid; });
       if (i < 0) { reply(cmd, { ok: true }); break; }
-      if (!host && P.queue[i].singerId !== cmd.cid) { reply(cmd, { ok: false, err: "host" }); return; }
-      P.queue.splice(i, 1); paintPlay(); reply(cmd, { ok: true }); break;
+      if (!host && Q()[i].singerId !== cmd.cid) { reply(cmd, { ok: false, err: "host" }); return; }
+      Q().splice(i, 1); paintPlay(); reply(cmd, { ok: true }); break;
     }
     case "up": {
       if (!host) { reply(cmd, { ok: false, err: "host" }); return; }
-      var j = P.queue.findIndex(function (q) { return q.qid === cmd.qid; });
-      if (j > 0) { var tmp = P.queue[j - 1]; P.queue[j - 1] = P.queue[j]; P.queue[j] = tmp; paintPlay(); }
+      var j = Q().findIndex(function (q) { return q.qid === cmd.qid; });
+      if (j > 0) { var tmp = Q()[j - 1]; Q()[j - 1] = Q()[j]; Q()[j] = tmp; paintPlay(); }
       reply(cmd, { ok: true }); break;
     }
     case "skip":
@@ -506,9 +548,32 @@ function onCmd(topic, cmd) {
       else if (cmd.action === "toggle") { bgOn = !bgOn; applyBg(); }
       else if (cmd.action === "next") { try { bgP.nextVideo(); } catch (e) {} }
       reply(cmd, { ok: true }); break;
+    case "clap":
+      changed = false;
+      if (now && phase === "playing" && cmd.cid !== now.singerId) { now.claps = (now.claps || 0) + 1; clapFx(); $("pClaps").textContent = "👏 " + now.claps; }
+      reply(cmd, { ok: true }); break;
+    case "autopick": {
+      if (!host) { reply(cmd, { ok: false, err: "host" }); return; }
+      var pk = autoPick();
+      if (!pk) { reply(cmd, { ok: false, err: "noguests" }); return; }
+      reply(cmd, { ok: true, who: pk.singer, t: pk.t }); break;
+    }
+    case "ads": {
+      if (!host) { reply(cmd, { ok: false, err: "host" }); return; }
+      var av = cmd.vid || (now && now.ids[now.idx || 0]);
+      if (!av) { reply(cmd, { ok: true }); break; }
+      if (adSet[av]) delete adSet[av]; else adSet[av] = 1;
+      T.store("ads", adSet); publishCatalog();
+      reply(cmd, { ok: true, ads: !!adSet[av] }); break;
+    }
+    case "sync":
+      if (!host) { reply(cmd, { ok: false, err: "host" }); return; }
+      changed = false; maybeSync(true).then(function (r) { reply(cmd, r); }); break;
     case "settings":
       if (!host) { reply(cmd, { ok: false, err: "host" }); return; }
-      if (typeof cmd.limit === "boolean") cfg.limit = cmd.limit;
+      if (cmd.mode === "music" || cmd.mode === "karaoke") setMode(cmd.mode);
+      if (typeof cmd.autoOn === "boolean") { cfg.autoOn = cmd.autoOn; if (cfg.autoOn && phase === "idle") scheduleAuto(); }
+      if (typeof cmd.limit === "boolean") { if (cfg.mode === "music") cfg.musicLimit = cmd.limit; else cfg.limit = cmd.limit; }
       if (cmd.intro && /^(neon|confeti|retro)$/.test(cmd.intro)) cfg.intro = cmd.intro;
       if (typeof cmd.key === "string" && cmd.key.trim()) { cfg.key = cmd.key.trim(); searchCache = {}; }
       saveCfg(); reply(cmd, { ok: true }); break;
@@ -518,21 +583,124 @@ function onCmd(topic, cmd) {
   if (changed) { saveParty(); publish(); }
 }
 
-function decode(s) { var t = document.createElement("textarea"); t.innerHTML = s; return t.value; }
+function ytErr(e) {
+  var r = e && e.message;
+  if (r === "quotaExceeded" || r === "dailyLimitExceeded") return "Se ha acabado la cuota diaria de búsquedas de YouTube. Vuelve a funcionar mañana; mientras, usa el catálogo o pega un enlace.";
+  if (r === "keyInvalid" || r === "badRequest" || r === "forbidden" || r === "accessNotConfigured") return "La clave de YouTube no funciona. Revísala en el panel de administrador.";
+  return "La búsqueda de YouTube ha fallado. Prueba otra vez o pega un enlace.";
+}
 function doSearch(cmd) {
   if (!cfg.key) { reply(cmd, { ok: false, err: "nokey" }); return; }
   var q = String(cmd.q || "").trim().slice(0, 80); if (!q) { reply(cmd, { ok: true, items: [] }); return; }
-  var k = T.norm(q);
-  if (searchCache[k]) { reply(cmd, { ok: true, items: searchCache[k] }); return; }
-  var url = "https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=15&q=" +
-    encodeURIComponent(q + " karaoke") + "&key=" + encodeURIComponent(cfg.key);
-  fetch(url).then(function (r) { return r.json(); }).then(function (j) {
-    if (j.error) { reply(cmd, { ok: false, err: "search", msg: "YouTube: " + (j.error.message || "error") }); return; }
-    var items = (j.items || []).filter(function (it) { return it.id && it.id.videoId; }).map(function (it) {
-      return { vid: it.id.videoId, t: decode(it.snippet.title), ch: decode(it.snippet.channelTitle || "") };
-    });
-    searchCache[k] = items; reply(cmd, { ok: true, items: items });
-  }).catch(function () { reply(cmd, { ok: false, err: "search" }); });
+  var k = cfg.mode + "|" + T.norm(q);
+  var mark = function (items) { return items.map(function (x) { var y = Object.assign({}, x); y.ads = !!adSet[x.vid]; return y; }).sort(function (a, b) { return (a.ads - b.ads) || (b.best - a.best) || (b.views - a.views); }); };
+  if (searchCache[k]) { reply(cmd, { ok: true, items: mark(searchCache[k]) }); return; }
+  var trusted = (CAT.channels || []).map(function (c) { return c.id; });
+  T.searchYT(q, cfg.key, cfg.mode, trusted, adSet).then(function (items) {
+    searchCache[k] = items; reply(cmd, { ok: true, items: mark(items) });
+  }).catch(function (e) { reply(cmd, { ok: false, err: "search", msg: ytErr(e) }); });
+}
+
+/* ---------- catalog: trusted channels' latest karaoke videos, refreshed daily ---------- */
+var adSet = T.store("ads") || {};
+var CAT = { items: [], channels: [], at: 0, req: [] };
+var syncing = null, catT = null;
+function onCatalog(m) {
+  if (!m || !m.items) return;
+  if ((m.at || 0) > (CAT.at || 0)) { CAT.items = m.items; CAT.channels = m.channels || []; CAT.at = m.at; }
+  (m.req || []).forEach(function (r) { if (!CAT.req.some(function (x) { return x.vid === r.vid; })) CAT.req.push(r); });
+  Object.keys(m.ads || {}).forEach(function (v) { adSet[v] = 1; });
+  T.store("ads", adSet);
+}
+function publishCatalog() {
+  clearTimeout(catT);
+  catT = setTimeout(function () {
+    conn.publish(tp.catalog, { items: CAT.items, channels: CAT.channels, at: CAT.at, req: CAT.req.slice(0, 200), ads: adSet, ts: Date.now() }, true);
+  }, 600);
+}
+function remember(r) {
+  if (CAT.req.some(function (x) { return x.vid === r.vid; }) || CAT.items.some(function (x) { return x.vid === r.vid; })) return;
+  CAT.req.unshift(r); publishCatalog();
+}
+function maybeSync(force) {
+  if (!cfg.key) return Promise.resolve({ ok: false, err: "nokey" });
+  if (syncing) return syncing;
+  if (!force && Date.now() - (CAT.at || 0) < 24 * 3600 * 1000) return Promise.resolve({ ok: true, n: CAT.items.length });
+  syncing = T.syncCatalog(cfg.key, cfg.channels || T.CHANNELS).then(function (r) {
+    syncing = null;
+    if (!r.items.length) return { ok: false, err: "search", msg: "No he podido leer los canales de karaoke. Revisa la clave de YouTube." };
+    CAT.items = r.items; CAT.channels = r.channels; CAT.at = r.at; publishCatalog();
+    return { ok: true, n: r.items.length };
+  }).catch(function (e) { syncing = null; return { ok: false, err: "search", msg: ytErr(e) }; });
+  return syncing;
+}
+setInterval(function () { if (started) maybeSync(); }, 3600 * 1000);
+
+/* ---------- avatars, cheers and auto karaoke ---------- */
+var AV = {}, autoT = null;
+function paintGuests() {
+  var el = $("faces"); if (!el) return;
+  el.innerHTML = P.guests.slice(0, 24).map(function (g) { return AV[g.id] ? '<img src="' + AV[g.id] + '" alt="' + esc(g.name) + '">' : "<span>" + esc(g.name.charAt(0).toUpperCase()) + "</span>"; }).join("");
+}
+function pickOne(a) { return a[Math.floor(Math.random() * a.length)]; }
+function verdict(n) {
+  var c = n.claps || 0, others = Math.max(1, P.guests.length - 1), r = c / others, nm = n.singer;
+  if (r >= 3) return pickOne(["¡Ovación para " + nm + "! 🔥", nm + " lo ha clavado 🌟", "¡Qué voz, " + nm + "! Esto es un estadio"]);
+  if (r >= 1) return pickOne(["¡Muy bien, " + nm + "! 👏", "¡Aplausos para " + nm + "!", nm + ", ¡tienes madera de artista!"]);
+  return pickOne(["¡" + nm + " le ha echado valor! 💪", "Lo importante es disfrutarlo, " + nm, "¡Bravo, " + nm + "! El próximo lo bordas"]);
+}
+var cheerI = 0;
+function cheer() {
+  var shy = P.guests.filter(function (g) { return !(g.sung) && !Q().some(function (q) { return q.singerId === g.id; }) && (!now || now.singerId !== g.id); });
+  if (cfg.mode === "music") return "";
+  if (shy.length) { var g = shy[cheerI++ % shy.length]; return pickOne(["¿" + g.name + ", para cuándo tu canción? 🎤", g.name + " aún no ha cantado… ¡que suba!", "¡Venga, " + g.name + ", que te toca animarte!"]); }
+  return pickOne(["¡Pide la tuya desde el móvil!", "Aplaude desde el móvil con 👏", "¡Qué nivel tiene esta fiesta!"]);
+}
+setInterval(function () {
+  var msg = cheer();
+  if (phase === "playing") $("ticker").textContent = msg;
+  if (phase === "idle" && msg && cfg.mode !== "music") $("idleCta").textContent = msg;
+}, 12000);
+function clapFx() {
+  var e = document.createElement("div"); e.className = "clapfx"; e.textContent = pickOne(["👏", "👏", "🙌", "🔥", "💖"]);
+  e.style.left = (70 + Math.random() * 25) + "vw"; e.style.top = (60 + Math.random() * 25) + "vh";
+  document.body.appendChild(e); setTimeout(function () { e.remove(); }, 1700);
+}
+// Picks the guest who has sung least and a song that fits their tastes.
+function autoPick() {
+  if (cfg.mode !== "karaoke" || !P.guests.length) return null;
+  var load = function (g) { return (g.sung || 0) + Q().filter(function (q) { return q.singerId === g.id; }).length + (now && now.singerId === g.id ? 1 : 0); };
+  var min = Math.min.apply(null, P.guests.map(load));
+  var g = pickOne(P.guests.filter(function (x) { return load(x) === min; }));
+  var pool = T.CATALOG.map(function (b) { return { songId: b.id, t: b.t, a: b.a, g: b.g, ids: b.ids }; })
+    .concat(CAT.items.concat(CAT.req).filter(function (x) { return !adSet[x.vid]; }).map(function (x) { return { vid: x.vid, t: x.t, a: x.ch || "" }; }));
+  var used = P.history || [];
+  pool = pool.filter(function (x) { return used.indexOf(x.songId || "yt:" + x.vid) < 0; });
+  if (!pool.length) return null;
+  var best = 0; pool.forEach(function (x) { x.f = T.fit(x, g); if (x.f > best) best = x.f; });
+  var x = pickOne(pool.filter(function (y) { return y.f === best; }));
+  var entry = { qid: T.rand(8), singer: g.name, singerId: g.id, kind: "karaoke", auto: true, t: x.t, a: x.a || "",
+    songId: x.songId || "yt:" + x.vid, ids: x.ids ? x.ids.slice() : [x.vid], titled: true };
+  P.history = used.concat([x.songId || "yt:" + x.vid]).slice(-300);
+  Q().push(entry); notice("🎲 Auto karaoke: le toca a " + g.name, 5000);
+  if (phase === "idle") startNext(); else paintPlay();
+  saveParty(); publish();
+  return entry;
+}
+function scheduleAuto() {
+  clearTimeout(autoT);
+  autoT = setTimeout(function () { if (cfg.autoOn && phase === "idle" && cfg.mode === "karaoke" && !Q().length) autoPick(); }, 15000);
+}
+
+/* ---------- karaoke / music mode ---------- */
+function setMode(m) {
+  if (m === cfg.mode) return;
+  clearTimers(); hidePlayFix();
+  if (now) { Q().unshift(now); now = null; }
+  try { mainP.stopVideo(); } catch (e) {}
+  cfg.mode = m; saveCfg();
+  notice(m === "music" ? "Modo música activado" : "Modo karaoke activado", 4000);
+  if (Q().length) startNext(); else toIdle();
 }
 
 /* ---------- notices ---------- */
@@ -580,7 +748,7 @@ requestAnimationFrame(frame);
 /* ---------- boot ---------- */
 T.applyColor(cfg.color);
 paintJoin(); layer("L-idle");
-conn = T.connect(ADMIN ? [tp.cmd, tp.config] : [tp.cmd], onMessage, function (n, why) {
+conn = T.connect(ADMIN ? [tp.cmd, tp.config, tp.catalog, tp.avAll] : [tp.cmd, tp.catalog, tp.avAll], onMessage, function (n, why) {
   if (why === "nolib") notice("No se ha podido cargar la conexión. Recarga la página.", 10000);
   if (n > 0 && started) publish();
 });

@@ -9,12 +9,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=1795201349">
+<link rel="stylesheet" href="app.css?v=1795266638">
 <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
 <script>window.mqtt || document.write('<script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js"><\/script>');</script>
-<script src="shared.js?v=1795201349"></script>
+<script src="shared.js?v=1795266638"></script>
 </head>
 <body>
+<div class="app" id="app"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="app" id="app"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
@@ -33,14 +35,13 @@ var ICON = {
   skip:'<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>',
   mic:'<svg viewBox="0 0 40 40" fill="none"><circle cx="24" cy="14" r="10" fill="#ff3d7f"/><path d="M17 21 5 33l2 2 12-12" stroke="#ffb547" stroke-width="4" stroke-linecap="round"/></svg>'
 };
-var GENRES = ["Todo", "Española", "Latino", "Clásicos", "Baladas"];
 var $app = document.getElementById("app");
 var params = new URLSearchParams(location.search);
 var S = {
   cid: T.store("cid") || T.rand(10),
-  session: T.store("session"),
-  conn: null, code: null, topics: null, state: null, lastState: 0, linkCount: 0,
-  tab: "home", genre: "Todo", q: "", yt: null, ytBusy: false, pending: {}
+  session: T.store("session"), profile: T.store("profile") || { tastes: [], artists: "", avatar: "" },
+  conn: null, code: null, topics: null, state: null, config: null, cat: null, av: {}, lastState: 0, linkCount: 0,
+  tab: "home", chip: "foryou", q: "", yt: null, ytBusy: false, pending: {}, draftAvatar: null
 };
 T.store("cid", S.cid);
 var esc = T.esc;
@@ -48,22 +49,30 @@ var esc = T.esc;
 /* ---------- connection ---------- */
 function openConn(code) {
   if (S.conn && S.code === code) return;
-  S.code = code; S.topics = T.topics(code); S.state = null;
-  S.config = null;
-  S.conn = T.connect([S.topics.state, S.topics.res(S.cid), S.topics.config], onMsg, function (n, why) {
+  S.code = code; S.topics = T.topics(code); S.state = null; S.config = null; S.cat = null; S.av = {};
+  S.conn = T.connect([S.topics.state, S.topics.res(S.cid), S.topics.config, S.topics.catalog, S.topics.avAll], onMsg, function (n, why) {
     S.linkCount = n; S.libMissing = why === "nolib"; paintConn();
   });
 }
+var softT;
+function soft() { clearTimeout(softT); softT = setTimeout(function () { if (S.session) render(true); }, 150); }
 function onMsg(topic, m) {
-  if (!S.topics) return;
+  if (!S.topics || !m) return;
   if (topic === S.topics.config) {
-    if (!m || m.code !== S.code) return;
+    if (m.code !== S.code) return;
     S.config = m; T.applyColor(m.color);
-    if (S.session) render(true); else paintHead();
-    return;
-  }
-  if (topic === S.topics.state) {
-    if (!S.state || (m.ts || 0) >= (S.state.ts || 0)) { S.state = m; S.lastState = Date.now(); if (S.session) render(true); }
+    if (S.session) soft(); else paintHead();
+  } else if (topic === S.topics.catalog) {
+    S.cat = m; soft();
+  } else if (topic.indexOf(S.topics.base + "/av/") === 0) {
+    if (m.img) { S.av[topic.split("/").pop()] = m.img; soft(); }
+  } else if (topic === S.topics.state) {
+    if (!S.state || (m.ts || 0) >= (S.state.ts || 0)) {
+      var prevMode = S.state && S.state.mode;
+      S.state = m; S.lastState = Date.now();
+      if (prevMode && m.mode !== prevMode) { S.yt = null; toast(m.mode === "music" ? "La fiesta ha pasado a modo música 🎵" : "¡Vuelve el karaoke! 🎤"); }
+      if (S.session) soft();
+    }
   } else if (topic === S.topics.res(S.cid) && m.rid && S.pending[m.rid]) {
     var p = S.pending[m.rid]; delete S.pending[m.rid]; clearTimeout(p.t); p.cb(m);
   }
@@ -83,48 +92,92 @@ function send(cmd, timeout) {
     S.conn.publish(S.topics.cmd, cmd);
   });
 }
+function publishAvatar() {
+  if (S.profile.avatar && S.conn) S.conn.publish(S.topics.av(S.cid), { img: S.profile.avatar, name: S.session ? S.session.name : "" }, true);
+}
 function errText(r) {
   var map = {
     timeout: "La tele no responde. Comprueba que tiene abierta la pantalla de Tarima.",
     auth: "Esa no es la contraseña de esta fiesta. Es la de invitados que sale en el panel de administrador (o la clave de anfitrión).",
-    limit: "Ya tienes el máximo de canciones en cola. Espera a cantar una.",
+    limit: "Ya tienes el máximo de canciones en cola. Espera a que suene una.",
     dup: "Ya tienes esa canción en la cola.",
     badurl: "No reconozco ese enlace de YouTube.",
     host: "Solo el anfitrión puede hacer eso.",
-    nokey: "La búsqueda en YouTube no está activada. Pega un enlace o elige del catálogo.",
-    search: "La búsqueda de YouTube ha fallado. Prueba otra vez o pega un enlace."
+    nokey: "La búsqueda en YouTube no está activada todavía. Elige del catálogo o pega un enlace.",
+    musiconly: "Ahora la fiesta está en modo música: busca la canción en YouTube o pega un enlace.",
+    search: "La búsqueda de YouTube ha fallado. Prueba otra vez o pega un enlace.",
+    noguests: "Todavía no hay invitados para elegir."
   };
-  return map[r.err] || r.msg || "Algo ha fallado. Prueba otra vez.";
+  return r.msg || map[r.err] || "Algo ha fallado. Prueba otra vez.";
 }
-
 var toastT;
 function toast(msg, bad) {
   var el = document.getElementById("toast");
   el.textContent = msg; el.className = "toast show" + (bad ? " bad" : "");
-  clearTimeout(toastT); toastT = setTimeout(function () { el.className = "toast" + (bad ? " bad" : ""); }, 2600);
+  clearTimeout(toastT); toastT = setTimeout(function () { el.className = "toast" + (bad ? " bad" : ""); }, 2800);
+}
+function face(cid, name, px) {
+  var img = cid === S.cid ? (S.profile.avatar || S.av[cid]) : S.av[cid];
+  return img ? '<img class="avimg" src="' + img + '" alt="" style="width:' + px + "px;height:" + px + 'px">' : T.avatar(name, px);
 }
 
 /* ---------- login ---------- */
+function tasteChips(sel) {
+  return '<div class="chips wrap" role="group" aria-label="Tus estilos">' + T.TASTES.map(function (t) {
+    return '<button type="button" class="chip" data-taste="' + t.k + '" aria-pressed="' + (sel.indexOf(t.k) >= 0) + '">' + esc(t.label) + "</button>";
+  }).join("") + "</div>";
+}
+function selfieBlock() {
+  var a = S.draftAvatar || S.profile.avatar;
+  return '<div class="selfie"><label class="selfiebtn" for="selfieIn">' + (a ? '<img src="' + a + '" alt="Tu avatar festivo">' : '<span>📸</span>') + "</label>" +
+    '<div><b>' + (a ? "¡Así saldrás en la tele!" : "Hazte un selfie") + '</b><small class="muted">' + (a ? "Toca la foto para repetirla." : "Te ponemos un sombrero de fiesta y saldrás así cuando te toque cantar. Opcional.") + "</small></div>" +
+    '<input type="file" id="selfieIn" accept="image/*" capture="user" hidden></div>';
+}
+function bindProfileInputs(root) {
+  root.querySelectorAll("[data-taste]").forEach(function (b) {
+    b.addEventListener("click", function () { b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true"); });
+  });
+  var si = root.querySelector("#selfieIn");
+  if (si) si.addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0]; if (!f) return;
+    var box = root.querySelector(".selfie"); box.classList.add("busy");
+    T.festive(f, getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#ff3d7f").then(function (url) {
+      S.draftAvatar = url; box.outerHTML = selfieBlock(); bindProfileInputs(root);
+    }).catch(function () { box.classList.remove("busy"); toast("No he podido usar esa foto. Prueba otra vez.", true); });
+  });
+}
+function readProfile(root) {
+  var tastes = [];
+  root.querySelectorAll("[data-taste]").forEach(function (b) { if (b.getAttribute("aria-pressed") === "true") tastes.push(b.dataset.taste); });
+  var ar = root.querySelector("#lArt");
+  return { tastes: tastes, artists: ar ? ar.value.trim().slice(0, 200) : "", avatar: S.draftAvatar || S.profile.avatar || "" };
+}
 function renderLogin(prefill) {
   prefill = prefill || {};
   var code = prefill.code || params.get("p") || (S.session && S.session.code) || "";
   $app.innerHTML = '<form class="login" id="lf" novalidate>' +
     '<div id="partyHead"><div class="logo">' + ICON.mic + 'Tarima</div>' +
-    '<p class="muted" style="margin:6px 0 26px">Entra a la fiesta y pide tu canción de karaoke.</p></div>' +
+    '<p class="muted" style="margin:6px 0 22px">Entra a la fiesta y pide tu canción.</p></div>' +
     '<div class="field"><label for="lc">Código de la fiesta</label><input id="lc" value="' + esc(code) + '" autocapitalize="characters" autocomplete="off" maxlength="8" placeholder="Sale en la tele" required></div>' +
     '<div class="field"><label for="ln">Tu nombre</label><input id="ln" value="' + esc(prefill.name || (S.session && S.session.name) || "") + '" autocomplete="nickname" maxlength="16" placeholder="Así saldrás en la tele" required></div>' +
     '<div class="field"><label for="lp">Contraseña de la fiesta</label><input id="lp" type="password" autocomplete="current-password" placeholder="Te la da el anfitrión" required></div>' +
+    selfieBlock() +
+    '<div class="field" style="margin-top:14px"><label>¿Qué música te gusta?</label>' + tasteChips(S.profile.tastes || []) + "</div>" +
+    '<div class="field"><label for="lArt">Artistas favoritos (opcional)</label><input id="lArt" value="' + esc(S.profile.artists || "") + '" placeholder="Rosalía, Queen, Bad Bunny…" maxlength="200"></div>' +
     '<button class="btn" id="lb" type="submit">Entrar a la fiesta</button>' +
     '<p class="err" id="le" role="alert">' + esc(prefill.err || "") + '</p>' +
     '<p style="text-align:center;margin-top:18px"><a class="link" href="admin.html">¿Organizas fiestas? Panel de administrador</a></p></form>';
-  if (code) { document.getElementById(prefill.name ? "lp" : "ln").focus(); openConn(code.toUpperCase()); paintHead(); }
-  document.getElementById("lf").addEventListener("submit", function (e) {
+  var form = document.getElementById("lf");
+  bindProfileInputs(form);
+  if (code) { openConn(code.toUpperCase()); paintHead(); }
+  form.addEventListener("submit", function (e) {
     e.preventDefault();
     var c = document.getElementById("lc").value.trim().toUpperCase();
     var n = document.getElementById("ln").value.trim().replace(/\s+/g, " ");
     var p = document.getElementById("lp").value;
     var le = document.getElementById("le"), lb = document.getElementById("lb");
     if (!c || !n || !p) { le.textContent = "Rellena el código, tu nombre y la contraseña."; return; }
+    S.profile = readProfile(form); T.store("profile", S.profile);
     lb.disabled = true; lb.textContent = "Conectando…"; le.textContent = "";
     login(c, n, p).then(function (msg) {
       if (msg) { lb.disabled = false; lb.textContent = "Entrar a la fiesta"; le.textContent = msg; }
@@ -136,17 +189,18 @@ function paintHead() {
   if (!el || !c) return;
   el.innerHTML = (c.photo ? '<div class="banner" style="background-image:url(\'' + c.photo + '\')"></div>' : '<div class="logo">' + ICON.mic + "Tarima</div>") +
     '<h1 style="font-size:30px;margin-top:14px">' + esc(c.name) + "</h1>" +
-    '<p class="muted" style="margin:6px 0 22px">' + esc(c.welcome || "Entra a la fiesta y pide tu canción de karaoke.") + "</p>";
+    '<p class="muted" style="margin:6px 0 18px">' + esc(c.welcome || "Entra a la fiesta y pide tu canción.") + "</p>";
 }
+function joinCmd() { return { type: "join", tastes: S.profile.tastes || [], artists: S.profile.artists || "" }; }
 function login(code, name, pw) {
   openConn(code);
   return T.hash(code + ":" + T.pw(pw)).then(function (auth) {
     return waitLinked(10000).then(function (ok) {
       if (!ok) return S.libMissing ? "No se ha podido cargar la app. Recarga la página." : "Sin conexión con el servidor. Revisa tu internet y prueba otra vez.";
       S.session = { code: code, name: name, auth: auth };
-      return send({ type: "join" }).then(function (r) {
+      return send(joinCmd()).then(function (r) {
         if (!r.ok) { S.session = null; return r.err === "timeout" ? "No encuentro esa fiesta. Revisa el código y que la tele tenga Tarima abierta." : errText(r); }
-        S.session.host = !!r.host; T.store("session", S.session);
+        S.session.host = !!r.host; T.store("session", S.session); publishAvatar();
         history.replaceState(null, "", location.pathname + "?p=" + code);
         S.tab = "home"; render();
         toast(r.host ? "Has entrado como anfitrión" : "¡Bienvenido, " + name + "!");
@@ -166,25 +220,31 @@ function paintConn() {
 }
 setInterval(paintConn, 5000);
 
-function st() { return S.state || { queue: [], guests: [], now: null, bg: {} }; }
+function st() { return S.state || { queue: [], guests: [], now: null, bg: {}, mode: "karaoke" }; }
+function isMusic() { return st().mode === "music"; }
 function mine() { return st().queue.filter(function (q) { return q.singerId === S.cid; }); }
+function me() { return { tastes: S.profile.tastes || [], artists: S.profile.artists || "" }; }
 
 function render(soft) {
   if (!S.session) { renderLogin(); return; }
   var view = document.getElementById("view");
   if (soft && view) {
-    var focused = document.activeElement && document.activeElement.id;
-    if (S.tab === "search" && (focused === "qInput" || focused === "linkUrl" || focused === "linkTitle")) { paintMini(); paintTabs(); return; }
+    var f = document.activeElement && document.activeElement.id;
+    if (/^(qInput|linkUrl|linkTitle|bgUrl|apiKey|lArt)$/.test(f)) { paintMini(); paintTabs(); return; }
     var y = view.scrollTop;
     view.innerHTML = VIEWS[S.tab](); bindView();
-    view.scrollTop = y; paintMini(); paintTabs(); return;
+    view.scrollTop = y; paintMini(); paintTabs(); paintTop(); return;
   }
-  var s = st();
   $app.innerHTML =
-    '<div class="topbar"><span class="party">' + esc(s.name || "Fiesta") + " · " + esc(S.session.code) + '</span><span class="conn" id="conn"><i></i></span></div>' +
+    '<div class="topbar" id="top"></div>' +
     '<main class="view" id="view">' + VIEWS[S.tab]() + "</main>" +
     '<div id="mini"></div><nav class="tabs" id="tabs" role="tablist" aria-label="Secciones"></nav>';
-  bindView(); paintMini(); paintTabs(); paintConn();
+  bindView(); paintMini(); paintTabs(); paintTop(); paintConn();
+}
+function paintTop() {
+  var el = document.getElementById("top"); if (!el) return;
+  el.innerHTML = '<span class="party">' + (isMusic() ? "🎵 " : "🎤 ") + esc(st().name || "Fiesta") + " · " + esc(S.session.code) + '</span><span class="conn" id="conn"><i></i></span>';
+  paintConn();
 }
 function paintTabs() {
   var tabs = [["home", "Inicio"], ["search", "Buscar"], ["queue", "Cola"], ["music", "Música"], ["party", "Fiesta"]];
@@ -202,8 +262,17 @@ function paintMini() {
   var s = st(), n = s.now;
   if (n) {
     var pct = n.dur ? Math.min(100, (n.pos || 0) / n.dur * 100) : 0;
-    var label = n.phase === "intro" ? "Sube a la tarima " : n.phase === "outro" ? "Aplausos para " : "Canta ";
-    el.innerHTML = '<div class="mini">' + T.art(n.t, 38) + '<div style="flex:1;min-width:0"><b>' + esc(n.t) + "</b><small>" + label + esc(n.singer) + ' · en la tele</small></div><div class="bar"><i style="width:' + pct + '%"></i></div></div>';
+    var music = isMusic();
+    var label = music ? "Sonando · pide " : n.phase === "intro" ? "Sube a la tarima " : n.phase === "outro" ? "Aplausos para " : "Canta ";
+    var canClap = !music && n.phase === "playing" && n.singerId !== S.cid;
+    el.innerHTML = '<div class="mini">' + face(n.singerId, n.singer, 38) + '<div style="flex:1;min-width:0"><b>' + esc(n.t) + "</b><small>" + label + esc(n.singer) + "</small></div>" +
+      (canClap ? '<button class="clap" type="button" id="clap" aria-label="Aplaudir">👏</button>' : "") + '<div class="bar"><i style="width:' + pct + '%"></i></div></div>';
+    var c = document.getElementById("clap");
+    if (c) c.addEventListener("click", function () {
+      c.classList.remove("pop"); void c.offsetWidth; c.classList.add("pop");
+      if (navigator.vibrate) navigator.vibrate(20);
+      S.conn.publish(S.topics.cmd, { type: "clap", cid: S.cid, rid: T.rand(8), auth: S.session.auth, name: S.session.name });
+    });
   } else {
     var bg = s.bg || {};
     el.innerHTML = '<div class="mini" style="background:#1f2a3a">' + T.art(bg.title || "Música", 38) + '<div style="flex:1;min-width:0"><b>' +
@@ -211,101 +280,151 @@ function paintMini() {
   }
 }
 
+/* ---------- catalog helpers ---------- */
+function catAll() {
+  var c = S.cat || {}, ads = c.ads || {}, out = [];
+  T.CATALOG.forEach(function (b) { out.push({ key: b.id, songId: b.id, t: b.a + " - " + b.t, a: "", g: b.g, ch: "Clásicos de la casa", best: true }); });
+  (c.req || []).forEach(function (r) { out.push({ key: r.vid, vid: r.vid, t: r.t, ch: "Pedida en la fiesta", req: true, ads: !!ads[r.vid] }); });
+  (c.items || []).forEach(function (r) { out.push({ key: r.vid, vid: r.vid, t: r.t, ch: r.ch, best: true, ads: !!ads[r.vid] }); });
+  return out;
+}
+function inQueue(key) { return st().queue.some(function (q) { return q.singerId === S.cid && (q.songId === key || q.vid === key || q.songId === "yt:" + key); }); }
+function songRow(x) {
+  var done = inQueue(x.key);
+  var thumb = x.vid ? '<div class="art" style="width:64px;height:48px"><img src="https://i.ytimg.com/vi/' + esc(x.vid) + '/mqdefault.jpg" alt="" loading="lazy"></div>' : T.art(x.t, 48);
+  var tags = (x.best && !x.ads ? '<span class="tag best">Mejor versión</span>' : "") + (x.ads ? '<span class="tag ads">Con anuncios</span>' : "") + (x.req ? '<span class="tag">Pedida aquí</span>' : "");
+  var data = x.songId ? 'data-add="' + esc(x.songId) + '"' : 'data-vid="' + esc(x.vid) + '" data-title="' + esc(x.t) + '" data-ch="' + esc(x.ch || "") + '"';
+  return '<div class="row">' + thumb + '<div class="meta"><b>' + esc(x.t) + "</b><small>" + tags + esc(x.ch || "") + "</small></div>" +
+    '<button class="icon-btn add' + (done ? " done" : "") + '" type="button" ' + data + ' aria-label="' + (done ? "Ya en tu cola" : "Añadir a la cola") + ": " + esc(x.t) + '">' + (done ? ICON.check : ICON.plus) + "</button></div>";
+}
+function forYou(list) {
+  var p = me();
+  if (!(p.tastes.length || p.artists)) return [];
+  return list.map(function (x) { return { x: x, f: T.fit(x, p) }; }).filter(function (o) { return o.f > 0; })
+    .sort(function (a, b) { return b.f - a.f; }).map(function (o) { return o.x; });
+}
+
 /* ---------- views ---------- */
-function inQueue(songId) { return st().queue.some(function (q) { return q.singerId === S.cid && q.songId === songId; }); }
-function songRow(s) {
-  var done = inQueue(s.id);
-  return '<div class="row">' + T.art(s.t, 48) + '<div class="meta"><b>' + esc(s.t) + "</b><small>" + esc(s.a) + "</small></div>" +
-    '<button class="icon-btn add' + (done ? " done" : "") + '" type="button" data-add="' + s.id + '" aria-label="' + (done ? "Ya en tu cola" : "Añadir a la cola") + ": " + esc(s.t) + '">' + (done ? ICON.check : ICON.plus) + "</button></div>";
-}
-function ytRow(r) {
-  return '<div class="row"><div class="art" style="width:64px;height:48px"><img src="https://i.ytimg.com/vi/' + esc(r.vid) + '/mqdefault.jpg" alt="" loading="lazy"></div><div class="meta"><b>' + esc(r.t) + "</b><small>" + esc(r.ch || "YouTube") + "</small></div>" +
-    '<button class="icon-btn add" type="button" data-vid="' + esc(r.vid) + '" data-title="' + esc(r.t) + '" data-ch="' + esc(r.ch || "") + '" aria-label="Añadir a la cola: ' + esc(r.t) + '">' + ICON.plus + "</button></div>";
-}
 var VIEWS = {
   home: function () {
-    var s = st(), q = s.queue, pos = -1;
+    var s = st(), q = s.queue, pos = -1, music = isMusic();
     for (var i = 0; i < q.length; i++) if (q[i].singerId === S.cid) { pos = i + 1; break; }
+    var c = S.config;
+    var head = (c && c.photo ? '<div class="banner" style="margin-top:8px;background-image:url(\'' + c.photo + '\')"><div><b>' + esc(c.name) + "</b>" + (c.welcome ? "<span>" + esc(c.welcome) + "</span>" : "") + "</div></div>" : "") +
+      '<div class="hello">' + face(S.cid, S.session.name, 52) + '<h2 class="title" style="margin:0">Hola, ' + esc(S.session.name) + "</h2></div>";
+    if (music) {
+      var arts = T.artistsOf(me()).slice(0, 8);
+      return head + '<div class="hero" style="background:linear-gradient(135deg,#3db8ff,#3ddc97)"><small>Modo música</small><b>' +
+        (pos > 0 ? "Tu canción suena dentro de " + pos : "Pide canciones para que suenen en la tele") + '</b><span style="font-size:13px;opacity:.9">' + q.length + " en cola" + (s.limit ? " · máximo 2 por móvil" : "") + "</span></div>" +
+        '<div class="h-row"><h3>Para ti</h3></div>' +
+        (arts.length ? '<div class="chips wrap">' + arts.map(function (a) { return '<button class="chip" type="button" data-searchfor="' + esc(a) + '">' + esc(a) + "</button>"; }).join("") + "</div>"
+          : '<p class="muted" style="margin:0">Añade tus artistas favoritos en la pestaña Fiesta y te los dejamos aquí a un toque.</p>') +
+        '<p class="note" style="margin-top:18px">Busca cualquier canción en la pestaña Buscar o pega un enlace de YouTube.</p>';
+    }
     var singingNow = s.now && s.now.singerId === S.cid;
-    var shelf = function (g, title) {
-      return '<div class="h-row"><h3>' + title + '</h3><button class="link" type="button" data-genre="' + g + '">Ver todo</button></div><div class="scroller">' +
-        T.CATALOG.filter(function (x) { return x.g === g; }).map(function (x) {
-          return '<button class="card" type="button" data-add="' + x.id + '" aria-label="Añadir ' + esc(x.t) + '">' + T.art(x.t, 128) + "<b>" + esc(x.t) + "</b><small>" + esc(x.a) + "</small></button>";
+    var all = catAll(), fy = forYou(all).slice(0, 14);
+    var shelf = function (title, items, chip) {
+      if (!items.length) return "";
+      return '<div class="h-row"><h3>' + title + '</h3><button class="link" type="button" data-chip="' + esc(chip) + '">Ver todo</button></div><div class="scroller">' +
+        items.slice(0, 14).map(function (x) {
+          var data = x.songId ? 'data-add="' + esc(x.songId) + '"' : 'data-vid="' + esc(x.vid) + '" data-title="' + esc(x.t) + '" data-ch="' + esc(x.ch || "") + '"';
+          var pic = x.vid ? '<div class="art" style="width:128px;height:96px"><img src="https://i.ytimg.com/vi/' + esc(x.vid) + '/mqdefault.jpg" alt="" loading="lazy"></div>' : T.art(x.t, 128);
+          return '<button class="card" type="button" ' + data + ' aria-label="Añadir ' + esc(x.t) + '">' + pic + "<b>" + esc(x.t) + "</b><small>" + esc(x.ch || "") + "</small></button>";
         }).join("") + "</div>";
     };
-    var c = S.config;
-    return (c && c.photo ? '<div class="banner" style="margin-top:8px;background-image:url(\'' + c.photo + '\')"><div><b>' + esc(c.name) + "</b>" + (c.welcome ? "<span>" + esc(c.welcome) + "</span>" : "") + "</div></div>" : "") +
-      '<h2 class="title">Hola, ' + esc(S.session.name) + "</h2>" +
+    var chans = {};
+    all.forEach(function (x) { if (x.vid && !x.req) (chans[x.ch] = chans[x.ch] || []).push(x); });
+    return head +
       '<div class="hero"><small>' + (singingNow ? "Es tu momento" : pos > 0 ? "Tu turno" : "Aún no estás en la cola") + "</small><b>" +
       (singingNow ? "¡Estás en la tarima!" : pos > 0 ? (pos === 1 ? "Eres el siguiente" : "Cantas dentro de " + pos + " canciones") : "Elige una canción y sube a la tarima") +
       '</b><span style="font-size:13px;opacity:.9">' + q.length + " en cola · " + (s.guests || []).length + " invitados</span></div>" +
-      shelf("Española", "Para cantar a grito pelado") + shelf("Latino", "Latino y reggaetón") + shelf("Clásicos", "Clásicos que todos saben") + shelf("Baladas", "Baladas para lucirse") +
-      '<p class="note" style="margin-top:20px">¿No está tu canción? Búscala en la pestaña Buscar o pega un enlace de YouTube.</p>';
+      shelf("Para ti", fy, "foryou") +
+      Object.keys(chans).map(function (ch) { return shelf("Lo último de " + ch, chans[ch], "ch:" + ch); }).join("") +
+      shelf("Clásicos de la casa", all.filter(function (x) { return x.songId; }), "house") +
+      (!fy.length ? '<p class="note" style="margin-top:16px">Dinos qué música te gusta en la pestaña Fiesta y te preparamos una lista «Para ti».</p>' : "");
   },
   search: function () {
-    var s = st(), q = T.norm(S.q);
-    var list = T.CATALOG.filter(function (x) { return (S.genre === "Todo" || x.g === S.genre) && (!q || T.norm(x.t + " " + x.a).indexOf(q) >= 0); });
+    var s = st(), music = isMusic(), q = T.norm(S.q);
     var ytBlock = "";
-    if (S.q.trim()) {
-      if (s.canSearch) {
-        ytBlock = '<div class="h-row"><h3>En YouTube</h3>' + (S.ytBusy ? '<span class="link">Buscando…</span>' : "") + "</div>" +
-          (S.yt && S.yt.q === S.q.trim() ? (S.yt.items.length ? S.yt.items.map(ytRow).join("") : '<p class="muted">Sin resultados de karaoke para eso.</p>') :
-            '<button class="btn sec" type="button" id="ytGo">Buscar «' + esc(S.q.trim()) + ' karaoke» en YouTube</button>');
-      }
+    if (S.q.trim() && s.canSearch) {
+      ytBlock = '<div class="h-row"><h3>En todo YouTube</h3>' + (S.ytBusy ? '<span class="link">Buscando…</span>' : "") + "</div>" +
+        (S.yt && S.yt.q === S.q.trim() && S.yt.mode === s.mode ? (S.yt.items.length ? S.yt.items.map(function (r) { return songRow({ key: r.vid, vid: r.vid, t: r.t, ch: r.ch, best: r.best, ads: r.ads }); }).join("") : '<p class="muted">Sin resultados que encajen. Prueba con otro nombre.</p>') :
+          '<button class="btn sec" type="button" id="ytGo">Buscar «' + esc(S.q.trim()) + '» en YouTube</button>');
     }
-    return '<h2 class="title">Buscar</h2>' +
-      '<form id="sf"><label class="search" for="qInput">' + ICON.search.replace("<svg", '<svg width="20" height="20"') + '<input id="qInput" type="search" enterkeyhint="search" placeholder="Canción o artista" value="' + esc(S.q) + '"></label></form>' +
-      '<div class="chips">' + GENRES.map(function (g) { return '<button class="chip" type="button" data-genre="' + g + '" aria-pressed="' + (S.genre === g) + '">' + g + "</button>"; }).join("") + "</div>" +
-      '<div class="h-row"><h3>Catálogo</h3><span class="link">' + list.length + "</span></div>" +
-      (list.map(songRow).join("") || '<p class="muted">No está en el catálogo.</p>') + ytBlock +
-      '<div class="h-row"><h3>Pegar enlace de YouTube</h3></div>' +
-      '<div class="box"><span class="muted" style="font-size:13px">Busca el karaoke en la app de YouTube, pulsa Compartir, copia el enlace y pégalo aquí.</span>' +
+    var paste = '<div class="h-row"><h3>Pegar enlace de YouTube</h3></div>' +
+      '<div class="box"><span class="muted" style="font-size:13px">En la app de YouTube pulsa Compartir, copia el enlace y pégalo aquí.</span>' +
       '<div class="field" style="margin:0"><label for="linkUrl">Enlace</label><input id="linkUrl" inputmode="url" placeholder="https://youtu.be/…"></div>' +
       '<div class="field" style="margin:0"><label for="linkTitle">Nombre de la canción (opcional)</label><input id="linkTitle" maxlength="60" placeholder="Para que salga en la tele"></div>' +
       '<div class="inline"><button class="btn small" type="button" id="linkAdd">Añadir a la cola</button>' +
-      '<a class="link" id="ytOpen" href="https://www.youtube.com/results?search_query=' + encodeURIComponent((S.q.trim() || "") + " karaoke") + '" target="_blank" rel="noopener">Abrir YouTube</a></div></div>';
+      '<a class="link" href="https://www.youtube.com/results?search_query=' + encodeURIComponent((S.q.trim() || "") + (music ? "" : " karaoke")) + '" target="_blank" rel="noopener">Abrir YouTube</a></div></div>';
+    var box = '<form id="sf"><label class="search" for="qInput">' + ICON.search.replace("<svg", '<svg width="20" height="20"') + '<input id="qInput" type="search" enterkeyhint="search" placeholder="' + (music ? "Cualquier canción o artista" : "Canción o artista") + '" value="' + esc(S.q) + '"></label></form>';
+    if (music) {
+      var arts = T.artistsOf(me()).slice(0, 8);
+      return '<h2 class="title">Buscar música</h2>' + box +
+        (arts.length ? '<div class="chips">' + arts.map(function (a) { return '<button class="chip" type="button" data-searchfor="' + esc(a) + '">' + esc(a) + "</button>"; }).join("") + "</div>" : "") +
+        (s.canSearch ? "" : '<p class="note">La búsqueda en YouTube aún no está activada. Pega un enlace.</p>') + ytBlock + paste;
+    }
+    var all = catAll(), list;
+    var chans = []; all.forEach(function (x) { if (x.vid && !x.req && chans.indexOf(x.ch) < 0) chans.push(x.ch); });
+    if (S.chip === "foryou") list = forYou(all); else if (S.chip === "house") list = all.filter(function (x) { return x.songId; });
+    else if (S.chip === "req") list = all.filter(function (x) { return x.req; }); else if (S.chip.indexOf("ch:") === 0) list = all.filter(function (x) { return x.ch === S.chip.slice(3); }); else list = all;
+    if (q) list = (S.chip === "foryou" ? all : list).filter(function (x) { return T.norm(x.t + " " + (x.ch || "")).indexOf(q) >= 0; });
+    list = list.slice().sort(function (a, b) { return (a.ads ? 1 : 0) - (b.ads ? 1 : 0); });
+    var chips = [["foryou", "Para ti"], ["all", "Todo"], ["req", "Pedidas aquí"], ["house", "Clásicos de la casa"]].concat(chans.map(function (c) { return ["ch:" + c, c]; }));
+    return '<h2 class="title">Buscar</h2>' + box +
+      '<div class="chips">' + chips.map(function (c) { return '<button class="chip" type="button" data-chip="' + esc(c[0]) + '" aria-pressed="' + (S.chip === c[0] && !q) + '">' + esc(c[1]) + "</button>"; }).join("") + "</div>" +
+      '<div class="h-row"><h3>' + (q ? "En el catálogo" : esc((chips.filter(function (c) { return c[0] === S.chip; })[0] || ["", "Catálogo"])[1])) + '</h3><span class="link">' + list.length + "</span></div>" +
+      (S.chip === "foryou" && !q && !list.length ? '<p class="muted" style="margin:0">Elige tus estilos y artistas en la pestaña Fiesta para ver aquí tus canciones.</p>' : "") +
+      (list.slice(0, 60).map(songRow).join("") || (q ? '<p class="muted">No está en el catálogo.</p>' : "")) + ytBlock + paste;
   },
   queue: function () {
-    var s = st(), n = s.now, host = S.session.host;
-    var nowBlock = n ? '<div class="now">' + T.art(n.t, 56) + '<div class="meta" style="flex:1;min-width:0"><b style="display:block;font-size:15px">' + esc(n.t) + '</b><small class="muted">' + esc(n.a || "") + '</small><div style="font-size:13px;margin-top:4px;display:flex;gap:6px;align-items:center">' + T.avatar(n.singer) + esc(n.singer) + "</div></div>" +
+    var s = st(), n = s.now, host = S.session.host, music = isMusic();
+    var nowBlock = n ? '<div class="now">' + face(n.singerId, n.singer, 56) + '<div class="meta" style="flex:1;min-width:0"><b style="display:block;font-size:15px">' + esc(n.t) + '</b><small class="muted">' + (music ? "Pedida por " : "Canta ") + esc(n.singer) + (s.ads ? " · con anuncios" : "") + "</small></div>" +
       (host || n.singerId === S.cid ? '<button class="btn small sec" type="button" data-act="skip">' + ICON.skip + " Saltar</button>" : '<div class="eq" aria-hidden="true"><i></i><i></i><i></i></div>') + "</div>"
       : '<div class="box"><span class="muted">La tele está esperando. Añade una canción para empezar.</span></div>';
+    var hostTools = host ? '<div class="tools">' +
+      (!music ? '<button class="btn small" type="button" data-act="auto">🎲 Auto karaoke</button>' : "") +
+      (n && n.vid ? '<button class="btn small sec" type="button" data-act="ads">' + (s.ads ? "Quitar marca de anuncios" : "Esta versión tiene anuncios") + "</button>" : "") + "</div>" : "";
     var list = s.queue.map(function (q, i) {
-      var me = q.singerId === S.cid;
-      return '<div class="row"><span class="pos">' + (i + 1) + "</span>" + T.art(q.t, 44) + '<div class="meta"><b>' + esc(q.t) + '</b><small style="display:flex;gap:5px;align-items:center">' + T.avatar(q.singer, 18) + esc(q.singer) + (me ? " · tú" : "") + "</small></div>" +
+      var mineQ = q.singerId === S.cid;
+      return '<div class="row"><span class="pos">' + (i + 1) + "</span>" + face(q.singerId, q.singer, 40) + '<div class="meta"><b>' + esc(q.t) + '</b><small>' + esc(q.singer) + (mineQ ? " · tú" : "") + (q.auto ? " · 🎲 le ha tocado" : "") + "</small></div>" +
         (host && i > 0 ? '<button class="icon-btn" type="button" data-up="' + q.qid + '" aria-label="Subir ' + esc(q.t) + '">' + ICON.up + "</button>" : "") +
-        (me || host ? '<button class="icon-btn" type="button" data-del="' + q.qid + '" aria-label="Quitar ' + esc(q.t) + '">' + ICON.x + "</button>" : "") + "</div>";
+        (mineQ || host ? '<button class="icon-btn" type="button" data-del="' + q.qid + '" aria-label="Quitar ' + esc(q.t) + '">' + ICON.x + "</button>" : "") + "</div>";
     }).join("");
-    return '<h2 class="title">Cola</h2><div class="h-row"><h3>En la tarima</h3></div>' + nowBlock +
+    return '<h2 class="title">Cola ' + (music ? "de música" : "de karaoke") + '</h2><div class="h-row"><h3>' + (music ? "Sonando" : "En la tarima") + "</h3></div>" + nowBlock + hostTools +
       '<div class="h-row"><h3>Siguientes</h3><span class="link">' + s.queue.length + "</span></div>" +
-      (list || '<p class="muted">No hay nadie en cola.</p>') +
-      (host ? '<p class="note">Eres anfitrión: puedes subir, quitar y saltar cualquier canción.</p>' : '<p class="note">Puedes quitar tus canciones. El anfitrión puede reordenar la cola.</p>');
+      (list || '<p class="muted">No hay nada en cola.</p>') +
+      (host ? '<p class="note">Eres anfitrión: puedes subir, quitar y saltar cualquier canción, y marcar las versiones con anuncios para que la próxima vez salgan las últimas.</p>' : '<p class="note">Puedes quitar tus canciones. ' + (s.limit ? "Máximo 2 en cola por móvil." : "") + "</p>");
   },
   music: function () {
     var s = st(), bg = s.bg || {}, host = S.session.host;
-    return '<h2 class="title">Música de fondo</h2><p class="muted" style="margin:4px 0 12px;font-size:13.5px">Suena en la tele cuando nadie está cantando y se pausa sola al empezar un karaoke.</p>' +
+    return '<h2 class="title">Música de fondo</h2><p class="muted" style="margin:4px 0 12px;font-size:13.5px">Suena en la tele cuando la cola está vacía y se pausa sola al empezar una canción.</p>' +
       '<div class="box"><div class="row" style="padding:0">' + T.art(bg.title || "Música", 56) + '<div class="meta"><b>' + esc(bg.set ? (bg.title || "Playlist de YouTube") : "Sin música de fondo") + "</b><small>" +
-      (bg.set ? (s.now ? "En pausa mientras alguien canta" : bg.on ? "Sonando en la tele" : "En pausa") : "El anfitrión puede poner una playlist") + "</small></div></div>" +
+      (bg.set ? (s.now ? "En pausa mientras suena la cola" : bg.on ? "Sonando en la tele" : "En pausa") : "El anfitrión puede poner una playlist") + "</small></div></div>" +
       (host && bg.set ? '<div class="inline"><button class="btn small sec" type="button" data-bg="toggle">' + (bg.on ? "Pausar" : "Reproducir") + '</button><button class="btn small sec" type="button" data-bg="next">Siguiente canción</button></div>' : "") + "</div>" +
-      (host ? '<div class="h-row"><h3>Poner una playlist</h3></div><div class="box"><span class="muted" style="font-size:13px">Pega el enlace de una playlist de YouTube (en YouTube: playlist, Compartir, Copiar enlace).</span>' +
+      (host ? '<div class="h-row"><h3>Poner una playlist</h3></div><div class="box"><span class="muted" style="font-size:13px">Pega el enlace de una playlist de YouTube.</span>' +
         '<div class="field" style="margin:0"><label for="bgUrl">Enlace de la playlist</label><input id="bgUrl" inputmode="url" placeholder="https://youtube.com/playlist?list=…"></div>' +
         '<button class="btn small" type="button" id="bgSet">Usar esta playlist</button></div>' : "") +
-      '<div class="h-row"><h3>Spotify</h3></div><div class="box"><span class="muted" style="font-size:13px">En esta beta la música de fondo va con YouTube. Si prefieres Spotify, ponlo desde tu móvil en la tele o en el altavoz con Spotify Connect y páusalo al empezar el karaoke. El control automático de Spotify llegará en la siguiente versión.</span></div>';
+      '<div class="h-row"><h3>Sobre Spotify</h3></div><div class="box"><span class="muted" style="font-size:13px">Spotify no deja reproducir sus canciones dentro de otra web sin Premium, así que la música de la fiesta va con YouTube. El modo música permite que todos pidan canciones a la tele.</span></div>';
   },
   party: function () {
-    var s = st(), host = S.session.host, link = T.siteBase() + "?p=" + S.session.code;
+    var s = st(), host = S.session.host, link = T.siteBase() + "?p=" + S.session.code, music = isMusic();
+    var guests = (s.guests || []).slice().sort(function (a, b) { return (b.sung || 0) - (a.sung || 0); });
     return '<h2 class="title">' + esc(s.name || "Fiesta") + "</h2>" +
+      (host ? '<div class="modes"><button type="button" data-mode="karaoke" aria-pressed="' + !music + '"><span class="mi">🎤</span><b>Karaoke</b></button><button type="button" data-mode="music" aria-pressed="' + music + '"><span class="mi">🎵</span><b>Música</b></button></div>' +
+        '<div class="switch"><span>' + (music ? "Música: máximo 2 por móvil" : "Karaoke: máximo 2 por persona") + '<small>Quítalo para pedir sin límite</small></span><button class="tog" type="button" role="switch" aria-checked="' + (s.limit !== false) + '" data-set="limit" aria-label="Límite de canciones"></button></div>' +
+        (!music ? '<div class="switch"><span>Auto karaoke continuo<small>Si la cola se vacía, la tele elige a alguien que haya cantado poco y una canción a su gusto</small></span><button class="tog" type="button" role="switch" aria-checked="' + !!s.autoOn + '" data-set="auto" aria-label="Auto karaoke continuo"></button></div>' : "") +
+        '<div class="switch"><span>Catálogo de canales<small>' + (s.catAt ? "Actualizado " + new Date(s.catAt).toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "Aún sin actualizar") + '</small></span><button class="btn small sec" type="button" data-act="sync">Actualizar</button></div>' : "") +
+      '<div class="h-row"><h3>Mi perfil</h3></div><div class="box" id="prof">' + selfieBlock() +
+      '<div class="field" style="margin:0"><label>Estilos que te gustan</label>' + tasteChips(S.profile.tastes || []) + "</div>" +
+      '<div class="field" style="margin:0"><label for="lArt">Artistas favoritos</label><input id="lArt" value="' + esc(S.profile.artists || "") + '" placeholder="Rosalía, Queen, Bad Bunny…" maxlength="200"></div>' +
+      '<button class="btn small" type="button" id="profSave">Guardar mi perfil</button></div>' +
       '<div class="box" style="margin-top:12px"><span class="muted" style="font-size:13px">Código de la fiesta</span><b style="font-family:var(--display);font-size:28px;letter-spacing:.06em">' + esc(S.session.code) + "</b>" +
-      '<span class="muted" style="font-size:13px;word-break:break-all">' + esc(link) + '</span><button class="btn small sec" type="button" id="copyLink">Copiar enlace para invitar</button></div>' +
-      (host ? '<div class="switch"><span>Máximo 2 canciones por persona<small>Para que cante todo el mundo</small></span><button class="tog" type="button" role="switch" aria-checked="' + (s.limit !== false) + '" data-set="limit" aria-label="Límite de canciones"></button></div>' +
-        '<div class="switch"><span>Estilo de intro<small>Cómo se presenta a cada cantante</small></span><select id="introSel" style="background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:8px">' +
-        [["neon", "Neón"], ["confeti", "Confeti"], ["retro", "Retro 80s"]].map(function (o) { return '<option value="' + o[0] + '"' + (s.intro === o[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + "</select></div>" +
-        '<div class="switch" style="display:grid"><span>Búsqueda en YouTube<small>' + (s.canSearch ? "Activada" : "Pega aquí una clave de la YouTube Data API para buscar cualquier canción") + '</small></span>' +
-        '<div class="inline"><input id="apiKey" style="background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:10px;flex:1;min-width:0" placeholder="Clave de API" autocomplete="off"><button class="btn small" type="button" id="keySet">Guardar</button></div></div>' : "") +
-      '<div class="h-row"><h3>Invitados (' + (s.guests || []).length + ")</h3></div>" +
-      (s.guests || []).map(function (g) {
+      '<button class="btn small sec" type="button" id="copyLink">Compartir enlace para invitar</button></div>' +
+      '<div class="h-row"><h3>Invitados (' + guests.length + ")</h3></div>" +
+      guests.map(function (g) {
         var c = s.queue.filter(function (q) { return q.singerId === g.id; }).length;
-        return '<div class="row">' + T.avatar(g.name, 36) + '<div class="meta"><b>' + esc(g.name) + (g.id === S.cid ? " (tú)" : "") + (g.host ? " · anfitrión" : "") + "</b><small>" + c + " en cola</small></div></div>";
+        return '<div class="row">' + face(g.id, g.name, 40) + '<div class="meta"><b>' + esc(g.name) + (g.id === S.cid ? " (tú)" : "") + (g.host ? " · anfitrión" : "") + "</b><small>" + (g.sung ? "🎤 " + g.sung + " cantadas · " : "Aún no ha cantado · ") + c + " en cola</small></div></div>";
       }).join("") +
       '<button class="btn sec" type="button" id="logout" style="margin-top:16px">Salir de la fiesta</button>';
   }
@@ -313,27 +432,34 @@ var VIEWS = {
 
 function addCmd(cmd) {
   return send(cmd).then(function (r) {
-    if (r.ok) toast(r.pos ? "¡Añadida! Vas en el puesto " + r.pos : "¡Añadida! Empiezas ahora, mira la tele");
+    if (r.ok) toast(r.pos ? "¡Añadida! Vas en el puesto " + r.pos : "¡Añadida! Empieza ahora, mira la tele");
     else toast(errText(r), true);
     return r;
   });
 }
+function simple(cmd, okMsg) { return send(cmd, 15000).then(function (r) { if (!r.ok) toast(errText(r), true); else if (okMsg) toast(typeof okMsg === "function" ? okMsg(r) : okMsg); return r; }); }
+function goSearch(q) { S.q = q; S.yt = null; S.tab = "search"; render(); var b = document.getElementById("ytGo"); if (b) b.click(); }
 function bindView() {
   var v = document.getElementById("view");
   v.querySelectorAll("[data-add]").forEach(function (b) { b.addEventListener("click", function () { addCmd({ type: "add", songId: b.dataset.add }); }); });
   v.querySelectorAll("[data-vid]").forEach(function (b) { b.addEventListener("click", function () { addCmd({ type: "add", vid: b.dataset.vid, title: b.dataset.title, ch: b.dataset.ch }); }); });
-  v.querySelectorAll("[data-genre]").forEach(function (b) { b.addEventListener("click", function () { S.genre = b.dataset.genre; S.tab = "search"; v.innerHTML = VIEWS.search(); bindView(); paintTabs(); }); });
-  v.querySelectorAll("[data-del]").forEach(function (b) { b.addEventListener("click", function () { send({ type: "remove", qid: b.dataset.del }).then(function (r) { if (!r.ok) toast(errText(r), true); }); }); });
-  v.querySelectorAll("[data-up]").forEach(function (b) { b.addEventListener("click", function () { send({ type: "up", qid: b.dataset.up }).then(function (r) { if (!r.ok) toast(errText(r), true); }); }); });
-  v.querySelectorAll("[data-act=skip]").forEach(function (b) { b.addEventListener("click", function () { send({ type: "skip" }).then(function (r) { if (!r.ok) toast(errText(r), true); }); }); });
-  v.querySelectorAll("[data-bg]").forEach(function (b) { b.addEventListener("click", function () { send({ type: "bg", action: b.dataset.bg }).then(function (r) { if (!r.ok) toast(errText(r), true); }); }); });
-  v.querySelectorAll("[data-set=limit]").forEach(function (b) { b.addEventListener("click", function () { send({ type: "settings", limit: b.getAttribute("aria-checked") !== "true" }); }); });
+  v.querySelectorAll("[data-chip]").forEach(function (b) { b.addEventListener("click", function () { S.chip = b.dataset.chip; S.q = ""; S.tab = "search"; v.innerHTML = VIEWS.search(); v.scrollTop = 0; bindView(); paintTabs(); }); });
+  v.querySelectorAll("[data-searchfor]").forEach(function (b) { b.addEventListener("click", function () { goSearch(b.dataset.searchfor); }); });
+  v.querySelectorAll("[data-del]").forEach(function (b) { b.addEventListener("click", function () { simple({ type: "remove", qid: b.dataset.del }); }); });
+  v.querySelectorAll("[data-up]").forEach(function (b) { b.addEventListener("click", function () { simple({ type: "up", qid: b.dataset.up }); }); });
+  v.querySelectorAll("[data-act=skip]").forEach(function (b) { b.addEventListener("click", function () { simple({ type: "skip" }); }); });
+  v.querySelectorAll("[data-act=auto]").forEach(function (b) { b.addEventListener("click", function () { simple({ type: "autopick" }, function (r) { return "🎲 Le toca a " + r.who + " con «" + r.t + "»"; }); }); });
+  v.querySelectorAll("[data-act=ads]").forEach(function (b) { b.addEventListener("click", function () { simple({ type: "ads" }, function (r) { return r.ads ? "Marcada: la próxima vez saldrá al final" : "Marca quitada"; }); }); });
+  v.querySelectorAll("[data-act=sync]").forEach(function (b) { b.addEventListener("click", function () { b.disabled = true; b.textContent = "Actualizando…"; simple({ type: "sync" }, function (r) { return "Catálogo actualizado: " + r.n + " karaokes"; }).then(function () { b.disabled = false; b.textContent = "Actualizar"; }); }); });
+  v.querySelectorAll("[data-bg]").forEach(function (b) { b.addEventListener("click", function () { simple({ type: "bg", action: b.dataset.bg }); }); });
+  v.querySelectorAll("[data-set=limit]").forEach(function (b) { b.addEventListener("click", function () { simple({ type: "settings", limit: b.getAttribute("aria-checked") !== "true" }); }); });
+  v.querySelectorAll("[data-set=auto]").forEach(function (b) { b.addEventListener("click", function () { simple({ type: "settings", autoOn: b.getAttribute("aria-checked") !== "true" }); }); });
+  v.querySelectorAll(".modes [data-mode]").forEach(function (b) { b.addEventListener("click", function () { simple({ type: "settings", mode: b.dataset.mode }); }); });
 
   var qi = document.getElementById("qInput");
   if (qi) {
     var refresh = function () {
       var tmp = document.createElement("div"); tmp.innerHTML = VIEWS.search();
-      // repaint everything below the search box, keep the input (and keyboard) in place
       var form = document.getElementById("sf");
       while (form.nextSibling) form.parentNode.removeChild(form.nextSibling);
       var kids = Array.prototype.slice.call(tmp.children), after = false;
@@ -342,11 +468,11 @@ function bindView() {
     };
     qi.addEventListener("input", function () { S.q = qi.value; S.yt = null; refresh(); });
     var doYt = function () {
-      var q = S.q.trim(); if (!q || !st().canSearch || S.ytBusy) return;
+      var q = S.q.trim(), mode = st().mode; if (!q || !st().canSearch || S.ytBusy) return;
       S.ytBusy = true; refresh();
-      send({ type: "search", q: q }, 12000).then(function (r) {
+      send({ type: "search", q: q }, 15000).then(function (r) {
         S.ytBusy = false;
-        if (r.ok) S.yt = { q: q, items: r.items || [] }; else toast(errText(r), true);
+        if (r.ok) S.yt = { q: q, mode: mode, items: r.items || [] }; else toast(errText(r), true);
         if (S.tab === "search") refresh();
       });
     };
@@ -358,23 +484,26 @@ function bindView() {
       addCmd({ type: "add", url: u, title: t }).then(function (r) { if (r.ok) { document.getElementById("linkUrl").value = ""; document.getElementById("linkTitle").value = ""; } });
     });
   }
+  var prof = document.getElementById("prof");
+  if (prof) {
+    bindProfileInputs(prof);
+    document.getElementById("profSave").addEventListener("click", function () {
+      S.profile = readProfile(prof); S.draftAvatar = null; T.store("profile", S.profile);
+      publishAvatar();
+      simple(joinCmd(), "Perfil guardado");
+      render(true);
+    });
+  }
   var bs = document.getElementById("bgSet");
   if (bs) bs.addEventListener("click", function () {
     var u = document.getElementById("bgUrl").value;
     if (!T.playlistId(u) && !T.ytId(u)) { toast("Pega el enlace de una playlist o de un vídeo de YouTube.", true); return; }
-    send({ type: "bg", action: "set", url: u }).then(function (r) { toast(r.ok ? "Playlist puesta en la tele" : errText(r), !r.ok); });
+    simple({ type: "bg", action: "set", url: u }, "Playlist puesta en la tele");
   });
-  var ks = document.getElementById("keySet");
-  if (ks) ks.addEventListener("click", function () {
-    var k = document.getElementById("apiKey").value.trim(); if (!k) return;
-    send({ type: "settings", key: k }).then(function (r) { toast(r.ok ? "Búsqueda en YouTube activada" : errText(r), !r.ok); });
-  });
-  var is = document.getElementById("introSel");
-  if (is) is.addEventListener("change", function () { send({ type: "settings", intro: is.value }); });
   var cl = document.getElementById("copyLink");
   if (cl) cl.addEventListener("click", function () {
     var link = T.siteBase() + "?p=" + S.session.code;
-    if (navigator.share) { navigator.share({ title: "Tarima karaoke", text: "Únete al karaoke", url: link }).catch(function () {}); return; }
+    if (navigator.share) { navigator.share({ title: "Tarima", text: "Únete a la fiesta", url: link }).catch(function () {}); return; }
     if (navigator.clipboard) navigator.clipboard.writeText(link).then(function () { toast("Enlace copiado"); }, function () { toast("No se pudo copiar. Copia el enlace a mano.", true); });
   });
   var lo = document.getElementById("logout");
@@ -385,11 +514,10 @@ function bindView() {
 var p = params.get("p");
 if (S.session && (!p || p.toUpperCase() === S.session.code)) {
   openConn(S.session.code); render();
-  // re-join silently so the TV knows we are here
   waitLinked(10000).then(function (ok) {
     if (!ok) return;
-    send({ type: "join" }).then(function (r) {
-      if (r.ok) { S.session.host = !!r.host; T.store("session", S.session); render(true); }
+    send(joinCmd()).then(function (r) {
+      if (r.ok) { S.session.host = !!r.host; T.store("session", S.session); publishAvatar(); render(true); }
       else if (r.err === "auth") { var n = S.session.name; S.session = null; T.store("session", null); renderLogin({ name: n, err: "La contraseña de la fiesta ha cambiado. Vuelve a entrar." }); }
     });
   });

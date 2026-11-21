@@ -18,6 +18,17 @@ Crea tu cuenta de administrador (usuario y contraseña) y desde ahí:
 
 Puedes entrar al panel desde cualquier dispositivo con tu usuario y contraseña. Si olvidas la contraseña no se puede recuperar.
 
+## Novedades v2
+
+- **Modo karaoke / modo música.** En el panel de administrador (página de cada fiesta) y en el móvil del anfitrión (pestaña Fiesta) hay un interruptor. En modo música la tele pone vídeos musicales sin intro y cada móvil puede pedir 2 canciones como máximo (el límite se puede quitar o cambiar).
+- **Catálogo de los mejores canales de karaoke.** Sing King, KaraFun, Stingray Karaoke y KaraokeMedia (en español). El catálogo se actualiza solo cada día y puedes añadir o quitar canales en Ajustes del panel.
+- **Búsqueda filtrada en todo YouTube.** Solo salen vídeos que se pueden ver en la tele, de duración normal y con «karaoke» en el título. Primero salen las de canales de confianza («Mejor versión»).
+- **Anuncios.** Los anuncios de YouTube no se pueden quitar sin YouTube Premium. Si una versión tiene anuncios, el anfitrión la marca en la pestaña Cola («Esta versión tiene anuncios») y a partir de ahí se pone la última y se evita.
+- **Selfie con disfraz.** Al entrar, cada invitado se hace un selfie y la app le pone un gorro de fiesta, corona o chistera y confeti. Ese avatar sale en grande en la tele cuando le toca cantar.
+- **Ánimos en la tele.** Mensajes según los aplausos (botón 👏 en el móvil) y avisos animando a quien todavía no ha cantado.
+- **Auto karaoke 🎲.** Elige a alguien que haya cantado poco y una canción según sus gustos. Se puede lanzar a mano o dejarlo continuo.
+- **Gustos musicales.** Al entrar, cada invitado marca estilos y artistas favoritos. Con eso se llena «Para ti» en Inicio y Buscar.
+
 ## La noche de la fiesta
 
 1. **Enciende la tele** (Samsung) y abre la app **Internet**. Escribe la dirección de la tele (`…/TARIMA/tv.html`) y guárdala en favoritos para no tener que escribirla más.

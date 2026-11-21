@@ -146,11 +146,206 @@ var T = (function () {
 
   function topics(code) {
     var base = "tarima/v1/" + String(code).toUpperCase();
-    return { base: base, state: base + "/state", cmd: base + "/cmd", config: base + "/config", res: function (cid) { return base + "/res/" + cid; } };
+    return { base: base, state: base + "/state", cmd: base + "/cmd", config: base + "/config", catalog: base + "/catalog",
+      av: function (cid) { return base + "/av/" + cid; }, avAll: base + "/av/+", res: function (cid) { return base + "/res/" + cid; } };
   }
 
   // Party passwords ignore case and spaces at the ends, so phone keyboards can't break them.
   function pw(s) { return String(s == null ? "" : s).trim().toLowerCase(); }
+
+  /* ---------- YouTube catalog and search (needs a YouTube Data API key) ---------- */
+  // Trusted karaoke channels. "id" when known; otherwise resolved once from "handle" or "q".
+  var CHANNELS = [
+    { name: "Sing King", id: "UCwTRjvjVge51X-ILJ4i22ew", handle: "@singkingkaraoke" },
+    { name: "KaraFun", handle: "@karafun", q: "KaraFun Karaoke" },
+    { name: "Stingray Karaoke", handle: "@StingrayKaraoke", q: "Stingray Karaoke" },
+    { name: "KaraokeMedia (español)", id: "UCmV_ZCnAAj5DbkUqpBC_CDg", q: "KaraokeMedia karaoke español" }
+  ];
+  var YT = "https://www.googleapis.com/youtube/v3/";
+  function ytGet(path, params, key) {
+    var qs = Object.keys(params).map(function (k) { return k + "=" + encodeURIComponent(params[k]); }).join("&");
+    return fetch(YT + path + "?" + qs + "&key=" + encodeURIComponent(key)).then(function (r) { return r.json(); }).then(function (j) {
+      if (j.error) { var e = new Error((j.error.errors && j.error.errors[0] && j.error.errors[0].reason) || j.error.message || "youtube"); e.yt = j.error; throw e; }
+      return j;
+    });
+  }
+  function decodeHtml(s) { var t = document.createElement("textarea"); t.innerHTML = s; return t.value; }
+  // "Queen - Bohemian Rhapsody (Karaoke Version)" -> "Queen - Bohemian Rhapsody"
+  function cleanTitle(t) {
+    t = decodeHtml(String(t || ""));
+    t = t.replace(/[\(\[\{][^\)\]\}]*(karaok|version|versión|lyric|letra|instrumental|official|oficial|hd|4k)[^\)\]\}]*[\)\]\}]/gi, "");
+    t = t.split("|")[0];
+    t = t.replace(/\bkaraok[eê]\b/gi, "").replace(/\s{2,}/g, " ").replace(/\s*[-–:]\s*$/, "").trim();
+    return t || "Vídeo de YouTube";
+  }
+  function isoSecs(d) { var m = String(d || "").match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/); return m ? (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0) : 0; }
+  function resolveChannel(c, key) {
+    if (c.id) return Promise.resolve(c.id);
+    var byHandle = c.handle ? ytGet("channels", { part: "id", forHandle: c.handle }, key).then(function (j) { return j.items && j.items[0] && j.items[0].id; }) : Promise.resolve(null);
+    return byHandle.catch(function () { return null; }).then(function (id) {
+      if (id || !c.q) return id;
+      return ytGet("search", { part: "snippet", type: "channel", maxResults: 1, q: c.q }, key).then(function (j) { return j.items && j.items[0] && j.items[0].id.channelId; });
+    });
+  }
+  // Latest uploads of each trusted channel (about 1 quota unit per 50 videos).
+  function syncCatalog(key, channels, perChannel) {
+    perChannel = perChannel || 150;
+    var out = [], resolved = [];
+    return channels.reduce(function (p, c) {
+      return p.then(function () {
+        return resolveChannel(c, key).then(function (id) {
+          if (!id) return;
+          resolved.push({ name: c.name, id: id, handle: c.handle || "", q: c.q || "" });
+          var pl = "UU" + id.slice(2), got = 0;
+          var page = function (tok) {
+            var prm = { part: "snippet", playlistId: pl, maxResults: 50 }; if (tok) prm.pageToken = tok;
+            return ytGet("playlistItems", prm, key).then(function (j) {
+              (j.items || []).forEach(function (it) {
+                var sn = it.snippet, vid = sn.resourceId && sn.resourceId.videoId;
+                if (!vid || /private|deleted/i.test(sn.title)) return;
+                if (!/karaok/i.test(sn.title)) return;
+                out.push({ vid: vid, t: cleanTitle(sn.title), ch: c.name, best: true });
+              });
+              got += 50;
+              if (j.nextPageToken && got < perChannel) return page(j.nextPageToken);
+            });
+          };
+          return page();
+        }).catch(function () {});
+      });
+    }, Promise.resolve()).then(function () { return { items: out, channels: resolved, at: Date.now() }; });
+  }
+  /* Search all of YouTube. mode "karaoke": title must say karaoke, 2-8 min. mode "music": 1.5-10 min, music category.
+     Trusted channels and the most viewed come first; versions marked with ads go last. */
+  function searchYT(q, key, mode, trustedIds, adSet) {
+    var karaoke = mode !== "music";
+    var prm = { part: "snippet", type: "video", videoEmbeddable: "true", maxResults: 25, q: karaoke ? q + " karaoke" : q };
+    if (!karaoke) prm.videoCategoryId = "10";
+    return ytGet("search", prm, key).then(function (j) {
+      var ids = (j.items || []).map(function (it) { return it.id && it.id.videoId; }).filter(Boolean);
+      if (!ids.length) return [];
+      return ytGet("videos", { part: "snippet,contentDetails,statistics,status", id: ids.join(",") }, key).then(function (v) {
+        var min = karaoke ? 120 : 90, max = karaoke ? 480 : 600;
+        return (v.items || []).filter(function (it) {
+          var d = isoSecs(it.contentDetails.duration);
+          if (it.status && it.status.embeddable === false) return false;
+          if (d < min || d > max) return false;
+          if (karaoke && !/karaok/i.test(it.snippet.title)) return false;
+          return true;
+        }).map(function (it) {
+          var best = karaoke && trustedIds.indexOf(it.snippet.channelId) >= 0;
+          return { vid: it.id, t: karaoke ? cleanTitle(it.snippet.title) : decodeHtml(it.snippet.title), ch: decodeHtml(it.snippet.channelTitle), best: best,
+            ads: !!(adSet && adSet[it.id]), views: +(it.statistics && it.statistics.viewCount) || 0, dur: isoSecs(it.contentDetails.duration) };
+        }).sort(function (a, b) { return (a.ads - b.ads) || (b.best - a.best) || (b.views - a.views); }).slice(0, 15);
+      });
+    });
+  }
+
+  /* ---------- guest tastes ---------- */
+  var TASTES = [
+    { k: "espanol", label: "Pop español", genres: ["Española"] },
+    { k: "latino", label: "Latino y reggaetón", genres: ["Latino"] },
+    { k: "clasicos", label: "Clásicos 70-80-90", genres: ["Clásicos"] },
+    { k: "baladas", label: "Baladas", genres: ["Baladas"] },
+    { k: "rock", label: "Rock", genres: ["Clásicos", "Española"] },
+    { k: "pop", label: "Pop internacional", genres: ["Clásicos"] },
+    { k: "urbano", label: "Rap y urbano", genres: ["Latino"] }
+  ];
+  function artistsOf(g) { return String((g && g.artists) || "").split(/[,;\n]+/).map(function (a) { return norm(a).trim(); }).filter(function (a) { return a.length > 1; }); }
+  // How well a song fits a guest: favourite artist 3, favourite style 2, nothing 0.
+  function fit(song, g) {
+    var title = norm((song.t || "") + " " + (song.a || ""));
+    if (artistsOf(g).some(function (a) { return title.indexOf(a) >= 0; })) return 3;
+    var genres = [];
+    TASTES.forEach(function (t) { if ((g.tastes || []).indexOf(t.k) >= 0) genres = genres.concat(t.genres); });
+    if (song.g && genres.indexOf(song.g) >= 0) return 2;
+    // channel catalog songs carry no genre: match the base catalog's artists of those styles
+    if (!song.g && genres.length && CATALOG.some(function (b) { return genres.indexOf(b.g) >= 0 && title.indexOf(norm(b.a.split(" y ")[0])) >= 0; })) return 2;
+    return 0;
+  }
+
+  /* ---------- festive selfie: crop, then draw a hat, glasses and confetti on top ---------- */
+  function festive(file, accent) {
+    accent = accent || "#ff3d7f";
+    return new Promise(function (res, rej) {
+      var fr = new FileReader(); fr.onerror = rej;
+      fr.onload = function () {
+        var img = new Image(); img.onerror = rej;
+        img.onload = function () {
+          var S = 320, cv = document.createElement("canvas"); cv.width = cv.height = S;
+          var g = cv.getContext("2d");
+          var side = Math.min(img.width, img.height), sx = (img.width - side) / 2, sy = (img.height - side) / 2;
+          // leave head-room for the hat: crop a bit lower on portraits
+          if (img.height > img.width) sy = Math.max(0, (img.height - side) * 0.35);
+          g.drawImage(img, sx, sy, side, side, 0, 0, S, S);
+          var face = { x: S * 0.29, y: S * 0.3, w: S * 0.42, h: S * 0.5 };
+          var done = function () { decorate(g, S, face, accent); res(cv.toDataURL("image/jpeg", 0.72)); };
+          if (window.FaceDetector) {
+            try {
+              new FaceDetector({ maxDetectedFaces: 1, fastMode: true }).detect(cv).then(function (f) {
+                if (f && f[0]) { var b = f[0].boundingBox; face = { x: b.x, y: b.y, w: b.width, h: b.height }; }
+                done();
+              }).catch(done);
+            } catch (e) { done(); }
+          } else done();
+        };
+        img.src = fr.result;
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+  function decorate(g, S, f, accent) {
+    var r = Math.random, cx = f.x + f.w / 2, top = f.y + f.h * 0.06;
+    // warm party light
+    var grd = g.createRadialGradient(S / 2, S / 2, S * 0.3, S / 2, S / 2, S * 0.75);
+    grd.addColorStop(0, "rgba(0,0,0,0)"); grd.addColorStop(1, accent + "88");
+    g.fillStyle = grd; g.fillRect(0, 0, S, S);
+    var hat = Math.floor(r() * 3);
+    g.save(); g.translate(cx, top); g.rotate((r() - 0.5) * 0.35);
+    var w = f.w * 1.05;
+    if (hat === 0) {            // party cone
+      var h = w * 1.05;
+      g.beginPath(); g.moveTo(-w * 0.42, 0); g.lineTo(0, -h); g.lineTo(w * 0.42, 0); g.closePath();
+      g.fillStyle = accent; g.fill();
+      g.save(); g.clip(); g.strokeStyle = "#ffd23f"; g.lineWidth = w * 0.09;
+      for (var i = -3; i < 6; i++) { g.beginPath(); g.moveTo(-w, -h * 0.18 * i); g.lineTo(w, -h * 0.18 * i - h * 0.35); g.stroke(); }
+      g.restore();
+      g.fillStyle = "#fff"; g.beginPath(); g.arc(0, -h, w * 0.1, 0, 6.3); g.fill();
+      g.fillStyle = "#ffd23f"; g.fillRect(-w * 0.46, -w * 0.05, w * 0.92, w * 0.1);
+    } else if (hat === 1) {     // crown
+      var ch = w * 0.5;
+      g.beginPath(); g.moveTo(-w * 0.45, 0);
+      [-0.45, -0.3, -0.15, 0, 0.15, 0.3, 0.45].forEach(function (k, i) { g.lineTo(w * k, i % 2 ? -ch * 0.45 : -ch); });
+      g.lineTo(w * 0.45, 0); g.closePath();
+      var gold = g.createLinearGradient(0, -ch, 0, 0); gold.addColorStop(0, "#fff3a0"); gold.addColorStop(1, "#e5a400");
+      g.fillStyle = gold; g.fill(); g.strokeStyle = "#a86f00"; g.lineWidth = 3; g.stroke();
+      ["#ff3d7f", "#3db8ff", "#3ddc97"].forEach(function (c, i) { g.fillStyle = c; g.beginPath(); g.arc(w * (i - 1) * 0.25, -ch * 0.22, w * 0.05, 0, 6.3); g.fill(); });
+    } else {                    // top hat
+      var th = w * 0.75;
+      g.fillStyle = "#16121c"; g.fillRect(-w * 0.55, -w * 0.08, w * 1.1, w * 0.12);
+      g.fillRect(-w * 0.33, -th, w * 0.66, th);
+      g.fillStyle = accent; g.fillRect(-w * 0.33, -w * 0.25, w * 0.66, w * 0.12);
+      g.fillStyle = "#ffd23f"; g.beginPath(); g.arc(w * 0.18, -w * 0.19, w * 0.06, 0, 6.3); g.fill();
+    }
+    g.restore();
+    if (r() < 0.6) {            // party glasses
+      var ey = f.y + f.h * 0.42, gw = f.w * 0.36, gh = f.h * 0.16;
+      g.save(); g.fillStyle = "rgba(20,10,30,.78)"; g.strokeStyle = r() < 0.5 ? "#ffd23f" : accent; g.lineWidth = 4;
+      [-1, 1].forEach(function (k) {
+        var x = cx + k * f.w * 0.22 - gw / 2;
+        g.beginPath(); if (g.roundRect) g.roundRect(x, ey - gh / 2, gw, gh, gh / 2.2); else g.rect(x, ey - gh / 2, gw, gh);
+        g.fill(); g.stroke();
+      });
+      g.beginPath(); g.moveTo(cx - f.w * 0.04, ey); g.lineTo(cx + f.w * 0.04, ey); g.stroke(); g.restore();
+    }
+    var cols = ["#ff3d7f", "#ffd23f", "#3db8ff", "#3ddc97", "#a46bff", "#fff"];
+    for (var c = 0; c < 70; c++) {
+      var x = r() * S, y = r() * S;
+      if (x > f.x - 10 && x < f.x + f.w + 10 && y > f.y - 20 && y < f.y + f.h) continue;   // keep the face clear
+      g.save(); g.translate(x, y); g.rotate(r() * 6.3); g.fillStyle = cols[c % cols.length]; g.fillRect(-4, -2, 8, 4); g.restore();
+    }
+    g.lineWidth = 10; g.strokeStyle = accent; g.strokeRect(5, 5, S - 10, S - 10);
+  }
 
   function adminTopic(h) { return "tarima/v1/admin/" + h; }
 
@@ -172,5 +367,5 @@ var T = (function () {
   }
 
   return { BROKERS: BROKERS, CATALOG: CATALOG, esc: esc, rand: rand, hash: hash, ytId: ytId, playlistId: playlistId, norm: norm,
-    initials: initials, pw: pw, adminTopic: adminTopic, COLORS: COLORS, applyColor: applyColor, hue: hue, art: art, avatar: avatar, store: store, connect: connect, topics: topics, mmss: mmss, siteBase: siteBase };
+    initials: initials, pw: pw, TASTES: TASTES, fit: fit, artistsOf: artistsOf, festive: festive, CHANNELS: CHANNELS, ytGet: ytGet, cleanTitle: cleanTitle, syncCatalog: syncCatalog, searchYT: searchYT, resolveChannel: resolveChannel, adminTopic: adminTopic, COLORS: COLORS, applyColor: applyColor, hue: hue, art: art, avatar: avatar, store: store, connect: connect, topics: topics, mmss: mmss, siteBase: siteBase };
 })();
